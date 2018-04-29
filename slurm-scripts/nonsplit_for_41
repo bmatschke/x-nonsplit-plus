@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#Job name
+#SBATCH -J nsp41
+# Asking for one node
+#SBATCH -N 1
+# Request a particular cluster
+#SBATCH -p longq
+# Output results message
+#SBATCH -o myNonSplit09-p41-%j-output.txt
+# Output error message
+#SBATCH -e myNonSplit09-p41-%j-errors.txt
+# time_limit
+#SBATCH -t 4320
+# number of processes 
+#SBATCH -c 24
+#SBATCH --exclusive
+p=41
+module purge
+module load editor
+module load slurm mpi/openmpi
+module load formal
+echo "=====my job informations ==== "echo "Node List: " $SLURM_NODELIST
+echo "my jobID: " $SLURM_JOB_ID
+echo "Partition: " $SLURM_JOB_PARTITION
+echo "submit directory:" $SLURM_SUBMIT_DIR
+echo "submit host:" $SLURM_SUBMIT_HOST
+echo "In the directory: `pwd`"
+echo "As the user: `whoami`"
+echo "p = " $p
+sage -c "load('Sage/NonSplit/nonsplit.sage'); print 'numCPUs =',numCPUs; print integralPoints_on_XnsPlus_P("${p}");"

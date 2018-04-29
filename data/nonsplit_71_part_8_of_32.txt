@@ -1,0 +1,5 @@
+# List of j-invariants of possible integral points on X_ns^+(p).
+# Computing this list took 66832 seconds on 12 cpus.
+# Authors: Aurelien Bajolet, Yuri Bilu, Benjamin Matschke, 2016.
+# License: Creative commons 3.0 by-nc.
+#

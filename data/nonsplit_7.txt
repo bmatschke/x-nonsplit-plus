@@ -1,0 +1,16 @@
+# List of j-invariants of possible integral points on X_ns^+(p).
+# Computing this list took 552 seconds on 12 cpus.
+# Authors: Aurelien Bajolet, Yuri Bilu, Benjamin Matschke, 2016.
+# License: Creative commons 3.0 by-nc.
+#
+j = 1728 = 2^6 * 3^3, hasCM = True, The image is contained in the normalizer of a non-split Cartan group. (cm)
+j = -147197952000 = -1 * 2^15 * 3^3 * 5^3 * 11^3, hasCM = True, The image is contained in the normalizer of a non-split Cartan group. (cm)
+j = -32768 = -1 * 2^15, hasCM = True, The image is contained in the normalizer of a non-split Cartan group. (cm)
+j = 550731776 = 2^15 * 7^5, hasCM = False, The image is contained in the normalizer of a non-split Cartan group.
+j = -884736000 = -1 * 2^18 * 3^3 * 5^3, hasCM = True, The image is contained in the normalizer of a non-split Cartan group. (cm)
+j = 66735540581252505802048 = 2^6 * 11^3 * 23^3 * 149^3 * 269^3, hasCM = False, The image is contained in the normalizer of a non-split Cartan group.
+j = 8000 = 2^6 * 5^3, hasCM = True, The image is contained in the normalizer of a non-split Cartan group. (cm)
+j = 6838755720062350457411072 = 2^9 * 17^6 * 19^3 * 29^3 * 149^3, hasCM = False, The image is contained in the normalizer of a non-split Cartan group.
+j = 287496 = 2^3 * 3^3 * 11^3, hasCM = True, The image is contained in the normalizer of a non-split Cartan group. (cm)
+j = 16807000 = 2^3 * 5^3 * 7^5, hasCM = False, The image is contained in the normalizer of a non-split Cartan group.
+j = -262537412640768000 = -1 * 2^18 * 3^3 * 5^3 * 23^3 * 29^3, hasCM = True, The image is contained in the normalizer of a non-split Cartan group. (cm)

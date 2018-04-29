@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#Job name
+#SBATCH -J nsp47_0
+# Asking for N nodes
+#SBATCH -N 4
+# Request a particular cluster
+#SBATCH -p longq
+# Output results message
+#SBATCH -o nonsplit-p47-chunk0-%j-output.txt
+# Output error message
+#SBATCH -e nonsplit-p47-chunk0-%j-errors.txt
+# time_limit
+#SBATCH -t 4320
+# number of processes 
+#SBATCH -c 24
+#SBATCH --exclusive
+p=47
+chunk=0
+numChunks=1
+module purge
+module load editor
+module load slurm mpi/openmpi
+module load formal
+echo "=====my job informations ==== "echo "Node List: " $SLURM_NODELIST
+echo "my jobID: " $SLURM_JOB_ID
+echo "Partition: " $SLURM_JOB_PARTITION
+echo "submit directory:" $SLURM_SUBMIT_DIR
+echo "submit host:" $SLURM_SUBMIT_HOST
+echo "In the directory: `pwd`"
+echo "As the user: `whoami`"
+echo "p = " $p
+echo "chunk = " $chunk
+echo "numChunks = " $numChunks
+mpirun bash ./nonsplit_for_47_inChunksAndParts_node.sh $p $chunk $numChunks
+
+

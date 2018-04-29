@@ -1,0 +1,9 @@
+# List of j-invariants of possible integral points on X_ns^+(p).
+# Computing this list took 145924 seconds on 12 cpus.
+# Authors: Aurelien Bajolet, Yuri Bilu, Benjamin Matschke, 2016.
+# License: Creative commons 3.0 by-nc.
+#
+j = 0, hasCM = True, The image is contained in the normalizer of a non-split Cartan group. (cm)
+j = 54000 = 2^4 * 3^3 * 5^3, hasCM = True, The image is contained in the normalizer of a non-split Cartan group. (cm)
+j = -3375 = -1 * 3^3 * 5^3, hasCM = True, The image is contained in the normalizer of a non-split Cartan group. (cm)
+j = -884736 = -1 * 2^15 * 3^3, hasCM = True, The image is contained in the normalizer of a non-split Cartan group. (cm)
