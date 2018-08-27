@@ -763,6 +763,7 @@ class X_ns_plus:
 		self.Theta = {};
 		self.deltaMax = {};
 		self.thetaMax = {};
+		self.B0_old1 = {}; #from first arxiv version
 		self.B0 = {};
 		self.init_variables_around_bakerBound(prec=self.stdPrecision);
 
@@ -1211,6 +1212,8 @@ class X_ns_plus:
 		return result;
 
 	def init_variables_around_bakerBound(self,prec,verbose=False):
+		#verbose = True;
+		
 		if prec == None:
 			prec = self.stdPrecision;
 		RIFprec = RealIntervalField(prec);
@@ -1284,10 +1287,29 @@ class X_ns_plus:
 		U1 = RIFprec(10^8*deltaMax*9^d*d^6*p^(4*d+2));
 		U1 *= prod([myRRtoRIF(self.etas[k].global_height().abs()) for k in range(1,d)]);
 		U2 = RIFprec(U1 + thetaMax + 4*kappa*p^3);
-		B0 = RIFprec(2*U1*log(U1) + 2*U2);
+		B0_old1 = RIFprec(2*U1*log(U1) + 2*U2); #From first arxiv version.
+		self.B0_old1[prec] = B0_old1;
+		if verbose:
+			print "Baker bound B0_old1 =",B0_old1;
+		
+		#	
+		#New version (second arxiv version) of Baker's bound:
+		#
+		delta = RIFprec(min([n for n in divisors(ZZ((p-1)/2)) if n>=3]));
+		#print "delta:",delta;
+		#Ohm is an upper bound for j(P), P an integral point:
+		Ohm = RIFprec(30^(delta+5)*delta^(-2*delta+RIFprec(4.5))*p^(6*delta+5)*(log(RIFprec(p)))^2);
+		#print "Ohm:",Ohm;
+		#Ohm0 is an upper bound for |log(1/q_c(P))|:
+		#Ohm0 = RIFprec(log(exp(Ohm)+2079)); #This is the definition for Ohm0 in the paper, however it needs too high precision this way!
+		Ohm0 = max(Ohm,1) + 2079; #Take instead this simple estimate from above. 
+		#print "Ohm0:",Ohm0;
+		#B0 is an upper bound for the exponents b_k in the fundamental relation:
+		B0 = deltaMax*Ohm0 + thetaMax + Theta;
 		self.B0[prec] = B0;
 		if verbose:
-			print "Baker bound B0 =",B0;
+			print "New Baker bound B0 =",B0;
+		#raise Exception(); #Debug
 
 	def reduction_of_BakerBound_B0_and_qc_at_sigmaC(self,sigma_c,B0=None,j1=0,j2=1,verbose=False):
 		'''
@@ -1491,6 +1513,31 @@ class X_ns_plus:
 		for var_name,variable in vars(self).iteritems():
 			if hasattr(variable,"__sizeof__"):
 				print var_name,"has size",variable.__sizeof__();
+
+	def reduction_from_B0old_to_B0new(self):
+		#The first and second arxiv versions of the paper use slightly
+		#different initial bounds B0.
+		#The computations up to p=97 were done using the old bound.
+		#So it remains to reduce from B0new to B0 (where B0=B0old).
+		
+		X = self;
+		p = X.p;
+		Sigma = X.Sigma;
+		#Take one sigma per cusp:
+		Sigma0 = [Sigma[i*p] for i in range(ZZ((p-1)/2))];
+		
+		prec = self.stdPrecision;
+		B0old = X.B0_old1[prec]; #from first arxiv version
+		B0new = X.B0[prec]; #from second arxiv version
+		if not B0new < B0old:
+			print "Need to reduce B0new at each cusp (with any sigma) until it's below B0:"
+			for sigma in Sigma0:
+				print "sigma:",sigma.list();
+				B1new = B0new;
+				while not B1new < B0old:
+					B1new,q1new = X.reduction_of_BakerBound_B0_and_qc_at_sigmaC(sigma,B0=B1new);
+					#raise Exception("TODO...");
+		print "done";
 
 ########################################################################
 ### Some calculus that was done in order to write the program: #########
@@ -2709,6 +2756,8 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 
 	B0 = X.B0[X.stdPrecision];
 	q_BakerBound = RIF(0);
+	#print "B0:",B0;
+	#print "log q_BakerBound:",log(q_BakerBound);
 	while True:
 		B0_new, q_BakerBound_new = X.reduction_of_BakerBound_B0_and_qc_at_sigmaC(sigmaC,B0);
 		q_BakerBound = max(q_BakerBound,q_BakerBound_new);
@@ -2716,6 +2765,8 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 			B0 = B0_new;
 			break;
 		B0 = B0_new;
+		#print "B0:",B0;
+		#print "log q_BakerBound:",log(q_BakerBound);
 
 	#raise Exception("Done with Baker bound reduction.");
 	
@@ -3257,3 +3308,42 @@ def integralPoints_on_XnsPlus_P(p,d=None,saveToFile = True,part=0,numParts=1,ext
 #integralPoints_on_XnsPlus_P(97,d=12); #55448 sec for first sigma
 #integralPoints_on_XnsPlus_P(97,d=16); #14795 sec for first sigma
 #and p=97 on plafrim: d=48 75543 sec, 
+
+def reduceB0OldToB0New():
+	#In the arxiv versions 1 and 2 of the paper we use different initial
+	#bounds B0 (or rather for q).
+	#The new version reduces the amount of technicalities in the paper. 
+	#In the computations for p<100 we used only the old bound.
+	#In order to make all computations valid also wrt. the second arxiv version,
+	#we reduce the new bound to the old bound whenever necessary:
+	for p in prime_range(10,100):
+		print "================================== p:",p;
+		X = X_ns_plus(p);
+		X.reduction_from_B0old_to_B0new();
+
+#reduceB0OldToB0New(); #Succeeds with all reductions.
+
+'''
+delta's:
+11 5
+13 3
+17 4
+19 3
+23 11
+29 4
+31 3
+37 3
+41 4
+43 3
+47 23
+53 4
+59 29
+61 3
+67 3
+71 5
+73 3
+79 3
+83 41
+89 4
+97 3
+'''
