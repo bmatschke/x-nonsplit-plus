@@ -23,16 +23,11 @@ pathData = pathData = "data/";
 ### Parallel computing settings: #######################################
 ########################################################################
 
-#maxCPUs = 1;
-#maxCPUs = 128;
-maxCPUs = 12; #Adjusted for plafrim
+maxCPUs = sage.parallel.ncpus.ncpus() #is determined by environment variable SAGE_NUM_THREADS
 
-numCPUs = min(maxCPUs,sage.parallel.ncpus.ncpus()); #the latter is number of available cpus.
-parallelIterator = "fork"; #Parallel computing.
-##parallelIterator = "multiprocessing"; #Parallel computing, but is not generic enough for us.
-
-#numCPUs = 1;
-#parallelIterator = "reference"; #Restricts computation to single cpu.
+numCPUs = maxCPUs; parallelIterator = "fork" if numCPUs >= 2 else "reference"
+#parallelIterator = "fork"; numCPUs = maxCPUs
+#parallelIterator = "reference"; numCPUs = 1;
 
 ########################################################################
 ### Numerics: ##########################################################
@@ -91,12 +86,12 @@ def LLL_gram_rif(Q,precision=20):
 	n = Q.nrows();
 	Qlist = Q.list();
 	m = max([abs(x) for x in Qlist]);
-	#print "debug15",Q.dimensions(), [(2^precision/m*x).center().ceil() for x in Q.list()]
+	#print("debug15",Q.dimensions(), [(2^precision/m*x).center().ceil() for x in Q.list()])
 	QZ = matrix(ZZ,n,n,[(2^precision/m*x).center().round() for x in Qlist]);
 	while not QZ.is_positive_definite():
 		QZ += identity_matrix(n); #Faster alternative would be to add the smallest eigenvalue (plus something small and positive) times the identity matrix to QZ in order to make it positive definite.
 	U = QZ.LLL_gram();
-	#print "debug13",U;
+	#print("debug13",U);
 	return U;
 
 def myRIFtoString(x):
@@ -132,7 +127,7 @@ def lowerAndUpperBoundsForSmallestAndLargestEigenvalueOfSelfadjointRealMatrix(M,
 	elif M.base_ring().name().startswith('RealField'):
 		Mi = myRRtoRIF_matrix(M);
 	else:
-		print "Error: M.base_ring() is neither RR nor RIF.";
+		print("Error: M.base_ring() is neither RR nor RIF.");
 		return;
 
 	#Do Newton algorithm for the minimal polynomial of M, starting left of all roots.
@@ -143,14 +138,14 @@ def lowerAndUpperBoundsForSmallestAndLargestEigenvalueOfSelfadjointRealMatrix(M,
 	lamdaMinQ = -cauchyBoundForRoots;
 	lamdaMaxQ = +cauchyBoundForRoots;
 	if verbose:
-		print "lamdaMinQ obtained from Cauchy bound:",lamdaMinQ;
-		print "lamdaMaxQ obtained from Cauchy bound:",lamdaMaxQ;
+		print("lamdaMinQ obtained from Cauchy bound:",lamdaMinQ);
+		print("lamdaMaxQ obtained from Cauchy bound:",lamdaMaxQ);
 
 	while True:
 		lamdaMinQNew = lamdaMinQ - Q(lamdaMinQ)/Qd(lamdaMinQ);
 		lamdaMinQNew = RIF(lamdaMinQNew.lower()); #If we don't do this, then sometimes the error (diameter of the real interval) would explode exponentially, and adjusting the precision slightly will not help.
 		if verbose:
-			print "New lamdaMinQNew:",lamdaMinQNew;
+			print("New lamdaMinQNew:",lamdaMinQNew);
 		if lamdaMinQNew.lower()<=lamdaMinQ.lower():
 			break;
 		else:
@@ -160,7 +155,7 @@ def lowerAndUpperBoundsForSmallestAndLargestEigenvalueOfSelfadjointRealMatrix(M,
 		lamdaMaxQNew = lamdaMaxQ - Q(lamdaMaxQ)/Qd(lamdaMaxQ);
 		lamdaMaxQNew = RIF(lamdaMaxQNew.upper()); #If we don't do this, then sometimes the error (diameter of the real interval) would explode exponentially, and adjusting the precision slightly will not help.
 		if verbose:
-			print "New lamdaMaxQNew:",lamdaMaxQNew;
+			print("New lamdaMaxQNew:",lamdaMaxQNew);
 		if lamdaMaxQNew.upper()>=lamdaMaxQ.upper():
 			break;
 		else:
@@ -354,7 +349,7 @@ def aNonsquareModP(ZmodP):
 	#for i in ZmodP:
 	#	if not i.is_square():
 	#		return i;
-	print "Error: There is no non-square mod p =",p,"!";
+	print("Error: There is no non-square mod p =",p,"!");
 	return None;
 
 ########################################################################
@@ -372,7 +367,7 @@ def lift_automorphism_from_subfield_to_superfield(k,K,L):
 	for l in L.galois_group():
 		if l(alpha) == k_alpha:
 			return l;
-	print "Error: No lift was found!";
+	print("Error: No lift was found!");
 	return None;
 
 def restrict_automorphism_from_superfield_to_subfield(l,L,K):
@@ -386,17 +381,18 @@ def restrict_automorphism_from_superfield_to_subfield(l,L,K):
 	for k in K.galois_group():
 		if k(alpha) == l_alpha:
 			return k;
-	print "Error: No restriction was found!";
+	print("Error: No restriction was found!");
 	return None;
 
 ########################################################################
 ### SL_2(Z) and related: ###############################################
 ########################################################################
 
-def lift_of_Mp_to_ZZ2overP((a1p,a2p),p):
+def lift_of_Mp_to_ZZ2overP(a1p_a2p,p):
 	'''
 	Lifting as in section "General Modular Units" of the paper.
 	'''
+	a1p,a2p = a1p_a2p
 	a1tilda = (a1p.lift() % p)/p;
 	a2tilda = (a2p.lift() % p)/p;
 	if a2tilda >= 1/2:
@@ -468,9 +464,9 @@ def convert_realQparameter_to_tau(q_rif):
 		tau1 = 1/2 - I*RIFprec(log(-q_rif)/(2*pi)).upper();
 		tau2 = 1/2 - I*RIFprec(log(-q_rif)/(2*pi)).lower();
 	if debug:
-		print "q_rif =",q_rif;
-		print "exp(2*pi*tau1) =",CIFprec(exp(2*pi*I*tau1));
-		print "exp(2*pi*tau2) =",CIFprec(exp(2*pi*I*tau2));
+		print("q_rif =",q_rif);
+		print("exp(2*pi*tau1) =",CIFprec(exp(2*pi*I*tau1)));
+		print("exp(2*pi*tau2) =",CIFprec(exp(2*pi*I*tau2)));
 	return CIFprec(tau1),CIFprec(tau2);
 
 ########################################################################
@@ -489,7 +485,7 @@ def fundamentalUnits_of_realCyclotomicField(p):
 	'''
 	
 	if p>151:
-		print "Only the case p<=151 is implemented, as only there we know that the class number equals one.";
+		print("Only the case p<=151 is implemented, as only there we know that the class number equals one.");
 		return None;
 
 	Qzeta = CyclotomicField(p);
@@ -502,14 +498,14 @@ def fundamentalUnits_of_realCyclotomicField(p):
 	arg_thetaPm1 = myCCtoCIF(CC(thetaPm1)).arg();
 	#thetaPm1 and all theta's in the following loop generate the units in Qzeta, in case the class number of K is 1.
 
-	#print 1/CC(CC(thetaPm1).arg()/2/pi);
+	#print(1/CC(CC(thetaPm1).arg()/2/pi));
 
 	fundamental_units = [];
 
 	for k in range(2,(p-1)/2+1):
 		thetaK = (1-zeta_p^k)/(1-zeta_p);
 		arg_thetaK = myCCtoCIF(CC(thetaK)).arg();
-		#print 1/CC(CC(theta).arg()/2/pi);
+		#print(1/CC(CC(theta).arg()/2/pi));
 		for i in range(Qzeta.zeta_order()):
 			arg_possible_eta = RIF((arg_thetaK + i*arg_thetaPm1)/2/pi);
 			try:
@@ -522,10 +518,10 @@ def fundamentalUnits_of_realCyclotomicField(p):
 					fundamental_units.append(possible_eta);
 					break;
 		else:
-			#print "p =",p;
-			print "Error: didn't find the absolute value of theta_k due to insufficient precision.";
+			#print("p =",p);
+			print("Error: didn't find the absolute value of theta_k due to insufficient precision.");
 			raise PrecisionError("Error: didn't find the absolute value of theta_k due to insufficient precision.");
-	#print fundamental_units;
+	#print(fundamental_units);
 	return fundamental_units;
 
 #fundamentalUnits_of_realCyclotomicField(71);
@@ -556,14 +552,14 @@ class X_ns_plus:
 			#Choose a divisor d of (p-1)/2, such that
 			# - it is not too large (we need to be able to compute fundamental units in K)
 			# - it is not too small (otherwise we get too many wrong candidates).
-			print "(p-1)/2 =",factor((p-1)/2);
+			print("(p-1)/2 =",factor((p-1)/2));
 			d = ZZ((p-1)/2);
 			#d = ((p-1)//2).prime_divisors()[0];
 		else:
 			#Check whether given d is valid:
 			if d<=1 or ((p-1)/2) % d != 0:
 				raise ValueError("Error: The input d is not valid!");
-		print "d = deg(K) =",d;
+		print("d = deg(K) =",d);
 		self.d = d;
 
 		#Ring Z/pZ:
@@ -579,15 +575,15 @@ class X_ns_plus:
 		#Set of 2x2-matrices over Z/pZ with determinant 1:
 		SL2_ZmodP = init_SL2(ZmodP);
 		self.SL2_ZmodP = SL2_ZmodP;
-		print "|SL_2(Z/pZ)| =",len(SL2_ZmodP);
+		print("|SL_2(Z/pZ)| =",len(SL2_ZmodP));
 		
 		#Cyclotomic field of order p:
 		Qzeta = CyclotomicField(p);
 		self.Qzeta = Qzeta;
-		print "Q(zeta_p) =",Qzeta;
+		print("Q(zeta_p) =",Qzeta);
 		zetaP = Qzeta.zeta(p); #We take a p'th root of unity, but not necessarily a generator of the roots of unity in Qzeta!
 		self.zetaP = zetaP;
-		print "zeta_p =",zetaP,"(its order is",zetaP.order(),")";
+		print("zeta_p =",zetaP,"(its order is",zetaP.order(),")");
 		
 		#The Galois group of Qzeta (as permutation group):
 		GalQzeta = Qzeta.galois_group();
@@ -596,7 +592,7 @@ class X_ns_plus:
 		#The same, now as elements in (Z/pZ)^*
 		GalQzeta_subsetOfZmodP = [self.elementOfGalQzeta_AsElementIn_ZmodPstar(g) for g in GalQzeta];
 		self.GalQzeta_subsetOfZmodP = GalQzeta_subsetOfZmodP;
-		print "GalQzeta as a subset of Z/pZ =",GalQzeta_subsetOfZmodP;
+		print("GalQzeta as a subset of Z/pZ =",GalQzeta_subsetOfZmodP);
 		GalQZeta_gen = GalQzeta.gen(0);
 		self.GalQZeta_gen = GalQZeta_gen;
 		
@@ -607,18 +603,18 @@ class X_ns_plus:
 		self.H_subsetOfZmodP = H_subsetOfZmodP;
 
 		#for h in H:
-		#	print "Element h in H:",h;
-		print "Chosen subgroup H of the Galois group of Qzeta has order:",H.order();
-		print "H as a subset of Z/pZ =",H_subsetOfZmodP;
+		#	print("Element h in H:",h);
+		print("Chosen subgroup H of the Galois group of Qzeta has order:",H.order());
+		print("H as a subset of Z/pZ =",H_subsetOfZmodP);
 		#The fixed field of H, and its inclusion into Qzeta:
-		print "From version 04 on we don't compute K anymore.";
+		print("From version 04 on we don't compute K anymore.");
 		#K, incl_K_to_Qzeta = H.fixed_field();
 		#self.K = K;
 		#self.incl_K_to_Qzeta = incl_K_to_Qzeta;		
-		#print "K =",K;
+		#print("K =",K);
 
 		#The Galois group of K:
-		print "And GalK will be identified with some choice of lift in GalQzeta!"; 
+		print("And GalK will be identified with some choice of lift in GalQzeta!"); 
 		#We don't compute GalK directly via K anymore,
 		# as this is implemented in Sage only up to d<=11:
 		#GalK = K.galois_group(); 
@@ -634,19 +630,19 @@ class X_ns_plus:
 		else:
 			m = 6;
 		self.m = m;
-		print "m =",m;
+		print("m =",m);
 		
 		#The fundamental units of K:
 		if len(H) != 2:
-			print "TODO: Improve the algorithm according to Yuri's idea that circumvents the need of computing the fundamental units.";
+			print("TODO: Improve the algorithm according to Yuri's idea that circumvents the need of computing the fundamental units.");
 			K, incl_K_to_Qzeta = H.fixed_field();
 			#The number \eta_0 from section "The Principal Relation":
 			eta0 = (1-zetaP).norm(K); #The relative norm of zeta_p in K.
-			print "eta0 =",eta0;
+			print("eta0 =",eta0);
 			fundamental_units_of_K = list(K.units());
 			fundamental_units_of_K = [incl_K_to_Qzeta(u) for u in fundamental_units_of_K];
-			print "fundamental units =",fundamental_units_of_K;
-			#print "TODO: We should improve the basis of fundamental units!"; #Update: As we use ellipsoids, this is not really necessary anymore, except for the original first reduction, which does not use ellipsoids.
+			print("fundamental units =",fundamental_units_of_K);
+			#print("TODO: We should improve the basis of fundamental units!"); #Update: As we use ellipsoids, this is not really necessary anymore, except for the original first reduction, which does not use ellipsoids.
 			#List of eta0 ... eta(d-1) as in section "The Principal Relation" in the paper:
 		else:
 			#|H|=2, i.e. K = Q(zeta_p+conj(zeta_p)) is the real cyclotomic field.
@@ -655,12 +651,12 @@ class X_ns_plus:
 
 			#The number \eta_0 from section "The Principal Relation":
 			eta0 = prod([h(1-zetaP) for h in H_subsetOfGalQzeta]); #The relative norm of zeta_p in K.
-			print "eta0 =",eta0;
-			print "eta0 is real positive:",eta0.is_real_positive();
+			print("eta0 =",eta0);
+			print("eta0 is real positive:",eta0.is_real_positive());
 
 		etas = [eta0] + fundamental_units_of_K;
 		self.etas = etas;
-		print "#etas =",len(etas);
+		print("#etas =",len(etas));
 
 		#F_p^2 \ (0,0):
 		Mp = [(ZmodP(i),ZmodP(j)) for i in range(p) for j in range(p) if (i,j)!=(0,0)];
@@ -669,12 +665,12 @@ class X_ns_plus:
 		#Lift of F_p^2 \ (0,0) to p^(-1)Z^2:
 		MpLift = [lift_of_Mp_to_ZZ2overP(a,p) for a in Mp];
 		self.MpLift = MpLift;
-		#print MpLift;
+		#print(MpLift);
 
 		#A representative of a nonsquare residue class mod p:
 		Xi = aNonsquareModP(ZmodP);
 		self.Xi = Xi;
-		print "Xi =",Xi,"(nonsquare mod p)";
+		print("Xi =",Xi,"(nonsquare mod p)");
 
 		#A normalizer of a non-split Cartan subgroup of GL_2(F_p):
 		G = [Matrices_ZmodP([a,Xi*b,b,a]) for (a,b) in Mp];
@@ -693,9 +689,9 @@ class X_ns_plus:
 		GH = [g for g in G if det(g) in H_subsetOfZmodP];
 		self.GH = GH;
 		
-		print "|G_1| =",len(G1);
-		print "|G_pm1| =",len(Gpm1);
-		print "|G_H| =",len(GH);
+		print("|G_1| =",len(G1));
+		print("|G_pm1| =",len(Gpm1));
+		print("|G_H| =",len(GH));
 
 		leftAction_Gpm1_on_Mp = GroupAction(Gpm1,Mp,lambda g,m: tuple(g*vector(m)));
 		self.leftAction_Gpm1_on_Mp = leftAction_Gpm1_on_Mp;
@@ -707,9 +703,9 @@ class X_ns_plus:
 		self.orbits_Mp_mod_GH = orbits_Mp_mod_GH;
 		Orbit0 = orbits_Mp_mod_GH[0];
 		self.Orbit0 = Orbit0;
-		print "Length of first orbits O of Mp/G_H:",len(Orbit0);
+		print("Length of first orbits O of Mp/G_H:",len(Orbit0));
 		#reps_Mp_mod_GH = rightAction_GH_on_Mp.OrbitRepresentatives();
-		#print "Representatives of Mp/G_H:",reps_Mp_mod_GH;
+		#print("Representatives of Mp/G_H:",reps_Mp_mod_GH);
 
 		rightAction_H_on_GalQzeta = GroupAction(H_subsetOfZmodP,GalQzeta_subsetOfZmodP,lambda h,g: g * h);
 		self.rightAction_H_on_GalQzeta = rightAction_H_on_GalQzeta;
@@ -725,12 +721,12 @@ class X_ns_plus:
 		#Representatives of cusps as chosen in section "Cusps" in the paper:
 		cuspRepresentatives = self.init_cuspRepresentatives();
 		self.cuspRepresentatives = cuspRepresentatives;
-		print "Cusp representatives:",cuspRepresentatives;
+		print("Cusp representatives:",cuspRepresentatives);
 
 		#Compute optimal system of representatives, see section "Cusps" (and section 2.1 of version 1 of the arXiv paper):
 		Sigma = self.init_optimalSystemOfRepresentatives();
 		self.Sigma = Sigma;
-		print "|Sigma| =",len(Sigma);
+		print("|Sigma| =",len(Sigma));
 
 		#Eta: d times d matrix whose entries are the logarithms of the
 		# absolute values of the Galois conjugates of the etas,
@@ -739,17 +735,17 @@ class X_ns_plus:
 		self.Eta = {};
 		self.Alpha = {};
 		self.init_Eta_and_Alpha(prec=self.stdPrecision);
-		print "Eta[0,0] =",self.Eta[self.stdPrecision][0,0];
-		print "det(Eta) =",det(self.Eta[self.stdPrecision]);
-		print "Alpha[0,0] =",self.Alpha[self.stdPrecision][0,0];
+		print("Eta[0,0] =",self.Eta[self.stdPrecision][0,0]);
+		print("det(Eta) =",det(self.Eta[self.stdPrecision]));
+		print("Alpha[0,0] =",self.Alpha[self.stdPrecision][0,0]);
 
 		ZmodPstar_to_GalKIndex = self.init_ZmodPstar_to_GalKIndex();
 		self.ZmodPstar_to_GalKIndex = ZmodPstar_to_GalKIndex;
-		print "ZmodPstar_to_GalKIndex:",ZmodPstar_to_GalKIndex;
+		print("ZmodPstar_to_GalKIndex:",ZmodPstar_to_GalKIndex);
 
 		lift_GalKIndex_to_G = self.init_lift_GalKIndex_to_G();
 		self.lift_GalKIndex_to_G = lift_GalKIndex_to_G;
-		print "lift_GalKIndex_to_G[0]:",lift_GalKIndex_to_G[0].list();
+		print("lift_GalKIndex_to_G[0]:",lift_GalKIndex_to_G[0].list());
 
 
 		self.exp_2pi_I_a2 = {};
@@ -784,15 +780,15 @@ class X_ns_plus:
 				continue;
 			if D.is_square():
 				continue;
-			print " ================================ ";
-			print "j =",j,"(discr ="+str(discriminant)+") should give a point on X_ns^+(p)!";
+			print(" ================================ ");
+			print("j =",j,"(discr ="+str(discriminant)+") should give a point on X_ns^+(p)!");
 
 			E = EllipticCurve_from_j(j);
 			tau = E.period_lattice().tau(100);
 			q = CIF(exp(2*pi*I*tau));
-			print "E =",E;
-			print "tau =",tau;
-			print "q =",q;
+			print("E =",E);
+			print("tau =",tau);
+			print("q =",q);
 			
 		#raise Exception("Debug stop");
 
@@ -813,7 +809,7 @@ class X_ns_plus:
 			squareRootsModP[x] = [];
 		for x in ZmodP:
 			squareRootsModP[x^2].append(x);
-		print "Square roots mod p:",squareRootsModP;
+		print("Square roots mod p:",squareRootsModP);
 
 		#Representatives of cusps as chosen in section "Cusps" of the paper:
 		cuspRepresentatives = [];
@@ -847,10 +843,10 @@ class X_ns_plus:
 		for cusp in self.cuspRepresentatives:
 			cuspModP = (ZmodP(cusp[0]),ZmodP(cusp[1]));
 			orbit = self.leftAction_G1_on_Mp.OrbitOfM(cuspModP);
-			if cuspCorrespondingToOrbitByItsFirstElement.has_key(orbit[0]):
+			if orbit[0] in cuspCorrespondingToOrbitByItsFirstElement:
 				raise Exception("Error: cusp mod p does not uniquely determine the cusp! That is, the algorithm must work harder as it does right now!");
 			cuspCorrespondingToOrbitByItsFirstElement[orbit[0]] = cusp;
-		print "cuspCorrespondingToOrbitByItsFirstElement =", cuspCorrespondingToOrbitByItsFirstElement;
+		print("cuspCorrespondingToOrbitByItsFirstElement =", cuspCorrespondingToOrbitByItsFirstElement);
 		
 		#Make Sigma an optimal system of representatives:
 		Sigma = [];
@@ -859,13 +855,13 @@ class X_ns_plus:
 			c = sigmaModP[1,0];
 			m = (a,c);
 			if verbose:
-				print "----"
-				print "sigmaModP =",sigmaModP.list();
-				print "m =",m;
+				print("----")
+				print("sigmaModP =",sigmaModP.list());
+				print("m =",m);
 			orbit = self.leftAction_G1_on_Mp.OrbitOfM(m);
 			cusp = cuspCorrespondingToOrbitByItsFirstElement[orbit[0]];
 			if verbose:
-				print "cusp =",cusp;
+				print("cusp =",cusp);
 			cuspModP = (ZmodP(cusp[0]),ZmodP(cusp[1]));
 			g = self.leftAction_G1_on_Mp.GroupElementSendingM1toM2(m,cuspModP);
 			#gamma = lift_SL2ZmodP_to_SL2Z(g,p);
@@ -873,7 +869,7 @@ class X_ns_plus:
 			#sigmaAlmostOptimal = gamma * sigmaNonOptimal;
 			sigmaAlmostOptimal = lift_SL2ZmodP_to_SL2Z(g*sigmaModP,p);
 			if verbose:
-				print "sigmaAlmostOptimal =",sigmaAlmostOptimal.list();
+				print("sigmaAlmostOptimal =",sigmaAlmostOptimal.list());
 			#We want to multiply some gamma in the lift of G1 to sigmaAlmostOptimal, such
 			#that it sends Infinity = (1,0) to cusp.
 			#So far its image of Infinity differs by cusp only by a multiple of p.
@@ -913,12 +909,12 @@ class X_ns_plus:
 			gamma = matrix(2,2,[p*kx+1,p*ky,p*kz,p*kw+1]);
 			sigmaOptimal = gamma*sigmaAlmostOptimal;
 			if verbose:
-				print "sigmaOptimal =",sigmaOptimal.list();
+				print("sigmaOptimal =",sigmaOptimal.list());
 			Sigma.append(sigmaOptimal);		
 			continue;
 
 		if verbose:
-			print "|Sigma| =",len(Sigma);
+			print("|Sigma| =",len(Sigma));
 		return Sigma;
 
 	def init_subgroupH_of_GalQzeta(self):
@@ -962,7 +958,7 @@ class X_ns_plus:
 		return lift_GalKIndex_to_G;		
 
 	def GL2ZmodP_to_GalKIndex(self,M):
-		#print "type of M:",type(M), "base ring:",M.base_ring(),"det(M) =",det(M);
+		#print("type of M:",type(M), "base ring:",M.base_ring(),"det(M) =",det(M));
 		return self.ZmodPstar_to_GalKIndex[det(M)];
 
 	def elementOfGalQzeta_AsElementIn_ZmodPstar(self,g):
@@ -974,14 +970,14 @@ class X_ns_plus:
 		We return ZmodP(i).
 		'''
 		zeta = self.Qzeta.zeta();
-		#print "zeta =",zeta;
-		#print "g =",g,type(g);
+		#print("zeta =",zeta);
+		#print("g =",g,type(g));
 		gZeta = g(zeta);
-		#print "gZeta =",gZeta;
+		#print("gZeta =",gZeta);
 		for i in range(self.Qzeta.zeta_order()):
 			if gZeta == zeta^i:
 				return self.ZmodP(i);
-		print "Error in generatorOfGal_AsElementIn_ZmodPstar().";
+		print("Error in generatorOfGal_AsElementIn_ZmodPstar().");
 
 	def j_invariant_in_qInterval(self,q_rif):
 		'''
@@ -993,7 +989,7 @@ class X_ns_plus:
 		CIFprec = ComplexIntervalField(q_rif.precision());
 		CCprec = ComplexField(q_rif.precision());
 		if q_rif.contains_zero():
-			print "q contains zero: This is not properly implemented yet, so we output the trivial interval RR...";
+			print("q contains zero: This is not properly implemented yet, so we output the trivial interval RR...");
 			return RIFprec(-Infinity,Infinity);
 		if q_rif > 0:
 			tau1 = -I*RIFprec(log(q_rif)/(2*pi)).upper();
@@ -1002,13 +998,13 @@ class X_ns_plus:
 			tau1 = 1/2 - I*RIFprec(log(-q_rif)/(2*pi)).upper();
 			tau2 = 1/2 - I*RIFprec(log(-q_rif)/(2*pi)).lower();
 		if debug:
-			print "tau1 =",tau1;
-			print "tau2 =",tau2;
+			print("tau1 =",tau1);
+			print("tau2 =",tau2);
 		j1 = myRRtoRIF(elliptic_j(CCprec(tau1)).real()); #taking CCprec here is important, because otherwise tau gets treated like a symbolic expression and gets rounded to CC.
 		j2 = myRRtoRIF(elliptic_j(CCprec(tau2)).real());
 		if debug:
-			print "j1 =",j1;
-			print "j2 =",j2;
+			print("j1 =",j1);
+			print("j2 =",j2);
 		jMin = min(j1,j2);
 		jMax = max(j1,j2);
 		j = RIFprec(jMin.lower(),jMax.upper());
@@ -1063,7 +1059,7 @@ class X_ns_plus:
 
 			if maxDiameter > 2^(-prec+1):
 				precEta += 200;
-				print "maxDiameter for Alpha:",maxDiameter,"is too big, so restart computing Eta with precision",precEta;
+				print("maxDiameter for Alpha:",maxDiameter,"is too big, so restart computing Eta with precision",precEta);
 				firstLoop = False;
 				continue;
 
@@ -1073,10 +1069,10 @@ class X_ns_plus:
 			#Otherwise all later sieves will be much slower!
 
 			if True:
-				print "precise Eta[0,0] =",Eta[0,0];
-				print "precise Alpha[0,0] =",Alpha[0,0];
-				print "self.Eta[0,0] =",self.Eta[prec][0,0];
-				print "self.Alpha[0,0] =",self.Alpha[prec][0,0];
+				print("precise Eta[0,0] =",Eta[0,0]);
+				print("precise Alpha[0,0] =",Alpha[0,0]);
+				print("self.Eta[0,0] =",self.Eta[prec][0,0]);
+				print("self.Alpha[0,0] =",self.Alpha[prec][0,0]);
 				#raise Exception("Debug");
 			break;
 
@@ -1241,7 +1237,7 @@ class X_ns_plus:
 			else:
 				gamma_a[a_in_Mp] = CIFprec(exp(CIFprec(pi)*I*a2*(a1-1))*(1-exp_2pi_I_a2[a2]));
 			log_abs_gamma_a[a_in_Mp] = log(abs(gamma_a[a_in_Mp]));
-			#print "debug234",type(log_abs_gamma_a[a_in_Mp]);
+			#print("debug234",type(log_abs_gamma_a[a_in_Mp]));
 			#raise Exception();
 			ell_a[a_in_Mp] = bernoulli_polynomial(a1,2)/2;
 		self.gamma_a[prec] = gamma_a;
@@ -1249,8 +1245,8 @@ class X_ns_plus:
 		self.ell_a = ell_a; #ell_a does not depend on the prec.
 
 		#self.init_gammaCk_and_logAbsGammaCk_and_ordcUk_by_OrbitRepresentative(prec=prec);
-		#print "debug4",self.gamma_c_k_by_OrbitRepresentative.keys();
-		#print "debug5",self.log_abs_gamma_c_k_by_OrbitRepresentative.keys();
+		#print("debug4",self.gamma_c_k_by_OrbitRepresentative.keys());
+		#print("debug5",self.log_abs_gamma_c_k_by_OrbitRepresentative.keys());
 
 		#gamma_c_k_by_OrbitRepresentative = self.gamma_c_k_by_OrbitRepresentative[prec];
 		#log_abs_gamma_c_k_by_OrbitRepresentative = self.log_abs_gamma_c_k_by_OrbitRepresentative[prec];
@@ -1290,25 +1286,25 @@ class X_ns_plus:
 		B0_old1 = RIFprec(2*U1*log(U1) + 2*U2); #From first arxiv version.
 		self.B0_old1[prec] = B0_old1;
 		if verbose:
-			print "Baker bound B0_old1 =",B0_old1;
+			print("Baker bound B0_old1 =",B0_old1);
 		
 		#	
 		#New version (second arxiv version) of Baker's bound:
 		#
 		delta = RIFprec(min([n for n in divisors(ZZ((p-1)/2)) if n>=3]));
-		#print "delta:",delta;
+		#print("delta:",delta);
 		#Ohm is an upper bound for j(P), P an integral point:
 		Ohm = RIFprec(30^(delta+5)*delta^(-2*delta+RIFprec(4.5))*p^(6*delta+5)*(log(RIFprec(p)))^2);
-		#print "Ohm:",Ohm;
+		#print("Ohm:",Ohm);
 		#Ohm0 is an upper bound for |log(1/q_c(P))|:
 		#Ohm0 = RIFprec(log(exp(Ohm)+2079)); #This is the definition for Ohm0 in the paper, however it needs too high precision this way!
 		Ohm0 = max(Ohm,1) + 2079; #Take instead this simple estimate from above. 
-		#print "Ohm0:",Ohm0;
+		#print("Ohm0:",Ohm0);
 		#B0 is an upper bound for the exponents b_k in the fundamental relation:
 		B0 = deltaMax*Ohm0 + thetaMax + Theta;
 		self.B0[prec] = B0;
 		if verbose:
-			print "New Baker bound B0 =",B0;
+			print("New Baker bound B0 =",B0);
 		#raise Exception(); #Debug
 
 	def reduction_of_BakerBound_B0_and_qc_at_sigmaC(self,sigma_c,B0=None,j1=0,j2=1,verbose=False):
@@ -1322,8 +1318,8 @@ class X_ns_plus:
 			verbose = True;
 		
 		if verbose:
-			print "Reduction of Baker bound:";
-			print "j1 =",j1,"and j2 =",j2;
+			print("Reduction of Baker bound:");
+			print("j1 =",j1,"and j2 =",j2);
 
 		RIFstd = RealIntervalField(self.stdPrecision);
 		p = self.p;
@@ -1336,32 +1332,32 @@ class X_ns_plus:
 		while True:
 		
 			if verbose:
-				print "B0 =",B0;
-				print "T =",T;
-				print "stdPrecision =",self.stdPrecision;
+				print("B0 =",B0);
+				print("T =",T);
+				print("stdPrecision =",self.stdPrecision);
 
 			neededPrec = (RIFstd(T*B0).log2().upper()/self.stdPrecision).ceil()*self.stdPrecision;
 			safetyBits = self.stdPrecision; 
 
 			if verbose:
-				print "neededPrec =",neededPrec,", safetyBits =",safetyBits;
+				print("neededPrec =",neededPrec,", safetyBits =",safetyBits);
 
 			while True:
 				precisionsSoFarThatAreUseful = [pr for pr in self.Alpha.keys() if pr>=neededPrec+2*safetyBits];
 				if precisionsSoFarThatAreUseful != []:
 					prec = min(precisionsSoFarThatAreUseful);
 					if verbose:
-						print "Need precision",neededPrec+4*safetyBits,"and we can take already used precision",prec;
+						print("Need precision",neededPrec+4*safetyBits,"and we can take already used precision",prec);
 				else:
 					prec = neededPrec + 3*safetyBits; #Do a bit more in case we later need to increase T.
 					if verbose:
-						print "Need to redo some numerical computations with higher precision",prec;
+						print("Need to redo some numerical computations with higher precision",prec);
 					self.init_for_higher_precision(prec);
 
 				RIFprec = RealIntervalField(prec);
 				B0 = RIFprec(B0.upper());
 				if verbose:
-					print "More precise B0 =",B0;
+					print("More precise B0 =",B0);
 
 				cIndex = self.Sigma.index(sigma_c);
 				delta1 = self.delta_c_j(cIndex,j1,prec=prec);
@@ -1369,14 +1365,14 @@ class X_ns_plus:
 				delta = delta2/delta1;
 
 				if verbose:
-					print "delta =",delta;
-					print "Absolute diameter of delta:",delta.absolute_diameter();
+					print("delta =",delta);
+					print("Absolute diameter of delta:",delta.absolute_diameter());
 
 				#Check precision for delta:
 				if not delta.absolute_diameter() < RIFprec(1/(T*B0)):
 					#Restart with larger precision:
 					if verbose:
-						print "Precision of delta was not enough! Redo with higher precision...";
+						print("Precision of delta was not enough! Redo with higher precision...");
 					safetyBits += self.stdPrecision;
 					neededPrec += ceil(log(delta.absolute_diameter() * RIFprec(T) * B0,2).upper());
 					continue;
@@ -1385,7 +1381,7 @@ class X_ns_plus:
 				theta2 = self.theta_c_j(cIndex,j2,prec=prec);
 				lamda = (delta2*theta1-delta1*theta2)/delta1;
 				if verbose:
-					print "lamda =",lamda;
+					print("lamda =",lamda);
 				#print "Absolute diameter of log_abs_gamma_c_k[1,0] =",self.log_abs_gamma_c_k(0,0,prec).absolute_diameter();
 				#print "Absolute diameter of Alpha[0,0] =",self.Alpha[prec][0,0].absolute_diameter();
 				#print "Absolute diameter of delta1 =",delta1.absolute_diameter();
@@ -1400,8 +1396,8 @@ class X_ns_plus:
 				#In Sage version 6.5:
 				cf = continued_fraction(delta.center());
 				if debug:
-					print "cf(delta):",cf;
-					print "Bound for r:",T*B0;
+					print("cf(delta):",cf);
+					print("Bound for r:",T*B0);
 
 				#r = NaN;
 				r = cf.denominator(0); #which should be 1
@@ -1411,7 +1407,7 @@ class X_ns_plus:
 					#cf = continued_fraction(delta.center(),nterms=nTerms);   #bits=neededPrec+3*safetyBits);
 					
 					#if len(cf) == 0:
-					#	print "Continued fractions where trivial. Redo with higher precision..."
+					#	print("Continued fractions where trivial. Redo with higher precision...")
 					#	safetyBits *= 2;
 					#	continue;
 
@@ -1420,7 +1416,7 @@ class X_ns_plus:
 					#In version 6.5:
 					rNew = cf.denominator(nTerms);
 					if debug:
-						print "rNew =",rNew;
+						print("rNew =",rNew);
 					if rNew == r and nTerms > 1: #note that it may happen that nTerms = 1 and r=rNew=1, in which case we want to continue with larger nTerms!)
 						break;
 					if not rNew <= T*B0:
@@ -1431,45 +1427,45 @@ class X_ns_plus:
 
 				try:
 					if debug:
-						print "r =",r;
+						print("r =",r);
 					rTimesDelta_round = (r*delta).unique_round();
 					if verbose:
-						print "Rounding of r*delta worked";
+						print("Rounding of r*delta worked");
 					rTimesLamda_round = (r*lamda).unique_round();
 					if verbose:
-						print "Rounding of r*lambda worked";
+						print("Rounding of r*lambda worked");
 					roundingFailed = False;
 				except ValueError:
 					roundingFailed = True;
 				if roundingFailed:
 					if verbose:
-						print "Rounding failed. Redo with higher precision..."
+						print("Rounding failed. Redo with higher precision...")
 					safetyBits *= 2;
 					continue;
 				if debug:
-					print "Check whether r*delta is close enough to an integer:";
-					print "(rTimesDelta_round - r*delta).abs():",(rTimesDelta_round - r*delta).abs();
-					print "1/(RIFprec(T)*B0):",1/(RIFprec(T)*B0);
+					print("Check whether r*delta is close enough to an integer:");
+					print("(rTimesDelta_round - r*delta).abs():",(rTimesDelta_round - r*delta).abs());
+					print("1/(RIFprec(T)*B0):",1/(RIFprec(T)*B0));
 				if not (rTimesDelta_round - r*delta).abs() < 1/(RIFprec(T)*B0):
 					if verbose:
-						print "r*delta not close enough to an integer. Redo with higher precision...";
+						print("r*delta not close enough to an integer. Redo with higher precision...");
 					safetyBits *= 2;
 					continue;
 
 				if verbose:
-					print "Precision is enough!";
+					print("Precision is enough!");
 				break; #Precision is enough!
 				
 
 			rTimesLamda_distToZZ = (rTimesLamda_round-r*lamda).abs();
 			if not (rTimesLamda_round-r*lamda).abs() >= 2/T:
 				if verbose:
-					print "Unlucky: r*lamda too close to an integer. Redo with larger T...";
+					print("Unlucky: r*lamda too close to an integer. Redo with larger T...");
 				T *= 10;
 				continue;
 
 			if verbose:
-				print "T is also large enough!";
+				print("T is also large enough!");
 			break; #T is large enough!
 
 		#print "debug123",type(delta);
@@ -1477,7 +1473,7 @@ class X_ns_plus:
 		#print "debug123",type(T);
 		#print "debug123",type(B0);
 		if verbose:
-			print rTimesLamda_distToZZ;
+			print(rTimesLamda_distToZZ);
 		q_BakerBound = RIFstd((RIFstd(3.2)*(1+delta.abs())*self.Theta[prec]*T*B0)/(rTimesLamda_distToZZ-1/T))^(-p);
 		#print "debug 234";
 
@@ -1493,9 +1489,9 @@ class X_ns_plus:
 		#print "debug asdf";
 			
 		if verbose:
-			print "Reduced bounds:";
-			print "B1 =",B1;
-			print "q_BakerBound =",q_BakerBound;
+			print("Reduced bounds:");
+			print("B1 =",B1);
+			print("q_BakerBound =",q_BakerBound);
 
 		return B1,q_BakerBound;
 
@@ -1509,10 +1505,10 @@ class X_ns_plus:
 
 	def showMemoryUsage(self):
 
-		print "Memory usage of X:";
-		for var_name,variable in vars(self).iteritems():
+		print("Memory usage of X:");
+		for var_name,variable in vars(self).items():
 			if hasattr(variable,"__sizeof__"):
-				print var_name,"has size",variable.__sizeof__();
+				print(var_name,"has size",variable.__sizeof__());
 
 	def reduction_from_B0old_to_B0new(self):
 		#The first and second arxiv versions of the paper use slightly
@@ -1530,14 +1526,38 @@ class X_ns_plus:
 		B0old = X.B0_old1[prec]; #from first arxiv version
 		B0new = X.B0[prec]; #from second arxiv version
 		if not B0new < B0old:
-			print "Need to reduce B0new at each cusp (with any sigma) until it's below B0:"
+			print("Need to reduce B0new at each cusp (with any sigma) until it's below B0:")
 			for sigma in Sigma0:
-				print "sigma:",sigma.list();
+				print("sigma:",sigma.list());
 				B1new = B0new;
 				while not B1new < B0old:
 					B1new,q1new = X.reduction_of_BakerBound_B0_and_qc_at_sigmaC(sigma,B0=B1new);
 					#raise Exception("TODO...");
-		print "done";
+		print("done");
+		
+	def genus(self):
+		'''
+		Compute genus of X_ns^+(p) via Baran's formula.		
+		'''
+		p = self.p
+		N = p
+		v = 1 #number of distinct prime divisors of N
+		r = 1 #ord_p(N)
+		phi = p-1
+		beta3 = 1 if (p%3 == 2) else 0
+		if p % 4 == 1:
+			pr = 1 - 1/p
+		elif p == 2:
+			pr = 1
+		elif p % 4 == 3:
+			pr = 1 + 1/p + 2/p^r
+		else:
+			assert(False)
+		#print(p,N,v,r,phi,beta3,pr)
+		genus = 1 + (N-6)*phi/(2^v*12) - beta3/3 - N/(2^v*4)*pr
+		#print(genus)
+		assert(genus in ZZ)
+		return ZZ(genus)
 
 ########################################################################
 ### Some calculus that was done in order to write the program: #########
@@ -1554,7 +1574,7 @@ def calculationForGammaForOptimalSystemOfRepresentatives():
 	kz = s*ct + c*k2;
 	kw = t*ct - a*k2;
 	null = p*(kx*kw - ky*kz)+kx+kw;
-	print null.expand();
+	print(null.expand());
 
 	#One has to choose k1 and k2 such that null becomes zero.
 	#This makes the determinant of gamma equal to one.
@@ -1576,7 +1596,7 @@ def calculationForLogEstimates():
 	#log(1+phi*t) = log(r) + I*alpha, thus
 	#f := |log(1+phi*t)| = sqrt((log(r))^2 + alpha^2):
 	f = sqrt((log(r))^2 + alpha^2);
-	#print f;
+	#print(f);
 	#show(latex((f^2).derivative(t).expand()));
 
 	#plot3d(lambda x,y:abs(log(x+I*y)),(0,2),(-1,1))
@@ -1593,7 +1613,7 @@ def test_dualEllipsoids1():
 	Q1 = matrix(QQ,2,2,[2,1,1,3]);
 	Q2 = matrix(QQ,2,2,[5,2,2,1]);
 	Qall = (Q1.inverse()+Q2.inverse()).inverse();
-	print Q1.det(),Q2.det(),Qall.det();
+	print(Q1.det(),Q2.det(),Qall.det());
 	P = contour_plot(vector([x,y])*Q1*vector([x,y]),(x,-5,5),(y,-5,5),contours=[0,1],fill=False);
 	P += contour_plot(vector([x,y])*Q2*vector([x,y]),(x,-5,5),(y,-5,5),contours=[0,1],fill=False);
 	P += contour_plot(vector([x,y])*Qall*vector([x,y]),(x,-5,5),(y,-5,5),contours=[0,1],fill=False);
@@ -1605,13 +1625,13 @@ def test_dualEllipsoids2():
 	'''
 	Q = matrix(QQ,2,2,[2,1,1,3]);
 	a = vector([3,1]);
-	print Q*a, a*Q, a*Q*a;
+	print(Q*a, a*Q, a*Q*a);
 	Qtilda1 = block_matrix(QQ,2,2,[Q,(Q*a).column(),(a*Q).row(),matrix(QQ,1,1,[a*Q*a])]);
 	Qtilda2 = block_matrix(QQ,2,2,[Q,(-Q*a).column(),(-a*Q).row(),matrix(QQ,1,1,[a*Q*a])]);
 	QtildaAll = (Qtilda1.adjoint()+Qtilda2.adjoint()).adjoint();
 	Qall = QtildaAll.submatrix(0,0,2,2);
-	print Qall;
-	#print Q1.det(),Q2.det(),Qall.det();
+	print(Qall);
+	#print(Q1.det(),Q2.det(),Qall.det());
 	P = contour_plot((vector([x,y])-a)*Q*(vector([x,y])-a),(x,-5,5),(y,-5,5),contours=[0,1],fill=False);
 	P += contour_plot((vector([x,y])+a)*Q*(vector([x,y])+a),(x,-5,5),(y,-5,5),contours=[0,1],fill=False);
 	P += contour_plot(vector([x,y])*Qall*vector([x,y]),(x,-5,5),(y,-5,5),contours=[0,1],fill=False);
@@ -1635,9 +1655,9 @@ def test_dualEllipsoids3():
 	#QtildaDual = Qtilda.inverse();
 	#QallDual = proj * QtildaDual * proj.transpose();
 	#Qall = QallDual.inverse();
-	#print Qall;
+	#print(Qall);
 	Qall = smallEllipsoidContaining_AplusQ_and_AminusQ(Q,a);
-	#print Q1.det(),Q2.det(),Qall.det();
+	#print(Q1.det(),Q2.det(),Qall.det());
 	P = contour_plot((vector([x,y])-a)*Q*(vector([x,y])-a),(x,-5,5),(y,-5,5),contours=[0,1],fill=False);
 	P += contour_plot((vector([x,y])+a)*Q*(vector([x,y])+a),(x,-5,5),(y,-5,5),contours=[0,1],fill=False);
 	P += contour_plot(vector([x,y])*Qall*vector([x,y]),(x,-5,5),(y,-5,5),contours=[0,1],fill=False);
@@ -1657,7 +1677,7 @@ def test_j_and_p(j,p):
 	of ONE elliptic curve with j-invariant j.
 	'''
 	E = EllipticCurve_from_j(QQ(j));
-	#print "j =",j,":",E, "-> is minimal =",E.is_minimal();
+	#print("j =",j,":",E, "-> is minimal =",E.is_minimal());
 	r = E.galois_representation();
 	imageType = r.image_type(p);
 	output = "";
@@ -1672,16 +1692,16 @@ def test_j_and_p(j,p):
 	#sys.stdout.flush();
 			
 def testEllipticCurvesWithSmallJ(p):
-	print "Elliptic curves with j in [0,1728] with image not all of GL_2(F_p) when p =",p,":";
+	print("Elliptic curves with j in [0,1728] with image not all of GL_2(F_p) when p =",p,":");
 	for j in range(0,1729):
 		E = EllipticCurve_from_j(QQ(j));
-		#print "j =",j,":",E, "-> is minimal =",E.is_minimal();
+		#print("j =",j,":",E, "-> is minimal =",E.is_minimal());
 		r = E.galois_representation();
 		imageType = r.image_type(p);
 		if not imageType.startswith("The image is all of GL_2(F_"):
-			print "j =",j,
-			print ", hasCM =",E.has_cm(),
-			print ", ",imageType;
+			print("j =",j),
+			print(", hasCM =",E.has_cm()),
+			print(", ",imageType);
 		sys.stdout.flush();
 
 #for p in prime_range(1,100):
@@ -1692,44 +1712,44 @@ def testEllipticCurvesWithSmallJ(p):
 ########################################################################
 
 def QuadraticFormToFPForm_rif(A,base_field=None):
-    '''
-    We compute a symmetric matrix Q such that for any vector x,
-     x^t*A*x = \sum_{i=1}^n q_{ii} * (x_i + \sum_{j=i+1}^n q_{ij}*x_j)^2
-    Everything is done over the base_field.
-     (If None, then take the base ring of A, which should be a field).
-    '''
-    
-    n = A.nrows();
-    if base_field==None:
+	'''
+	We compute a symmetric matrix Q such that for any vector x,
+	 x^t*A*x = \sum_{i=1}^n q_{ii} * (x_i + \sum_{j=i+1}^n q_{ij}*x_j)^2
+	Everything is done over the base_field.
+	 (If None, then take the base ring of A, which should be a field).
+	'''
+
+	n = A.nrows();
+	if base_field==None:
 		base_field = A.base_ring();
-    Q = matrix(base_field,n,n);
-    
-    #Following Fincke-Pohst's paper:
-    #Q = copy(A);
-    #Q = Q.change_ring(QQ);
-    #for i in range(n):
-    #    for j in range(i+1,n):
-    #        Q[j,i] = Q[i,j]; #used just as a temporary buffer
-    #        Q[i,j] = Q[i,j] / Q[i,i];
-    #for i in range(n):
-    #    for k in range(i+1,n):
-    #        for l in range(k,n):
-    #            Q[k,l] = Q[k,l] - Q[k,i]*Q[i,l];
-    #for i in range(n):
-    #    for j in range(i):
-    #        Q[i,j] = 0; #the lower diagonal is redundant now
-            
-    for i in range(n):
-        for k in range(i+1):
-            s = 0;
-            for j in range(k):
-                s = s + Q[j,i]*Q[j,k]*Q[j,j];
-            if i==k:
-                Q[i,i] = A[i,i]-s;
-            else:
-                Q[k,i] = (A[k,i]-s)/Q[k,k];
-            
-    return Q;            
+	Q = matrix(base_field,n,n);
+
+	#Following Fincke-Pohst's paper:
+	#Q = copy(A);
+	#Q = Q.change_ring(QQ);
+	#for i in range(n):
+	#    for j in range(i+1,n):
+	#        Q[j,i] = Q[i,j]; #used just as a temporary buffer
+	#        Q[i,j] = Q[i,j] / Q[i,i];
+	#for i in range(n):
+	#    for k in range(i+1,n):
+	#        for l in range(k,n):
+	#            Q[k,l] = Q[k,l] - Q[k,i]*Q[i,l];
+	#for i in range(n):
+	#    for j in range(i):
+	#        Q[i,j] = 0; #the lower diagonal is redundant now
+			
+	for i in range(n):
+		for k in range(i+1):
+			s = 0;
+			for j in range(k):
+				s = s + Q[j,i]*Q[j,k]*Q[j,j];
+			if i==k:
+				Q[i,i] = A[i,i]-s;
+			else:
+				Q[k,i] = (A[k,i]-s)/Q[k,k];
+			
+	return Q;            
    
 def My_FinckePohst_ViaGramMatrix_rif(A,boundForNormSquared,center=0,solutionList=None,maxNumSolutions=None,finalTransformation=None,callback=None,callbackArgs=None,lllReduce=True,breakSymmetry=True):
 	'''
@@ -1798,13 +1818,13 @@ def My_FinckePohst_ViaGramMatrix_rif(A,boundForNormSquared,center=0,solutionList
 		#print "debug14",k,u,xk0_up,xk0_down;
 		while True:
 			t = Q[k,k] * (x[k] + u)^2;
-			#print "t =",t;
+			#print("t =",t);
 			if t>RemainingBoundForNormSquared:
 				if x[k] >= xk0_up: 
 					break;
 				x[k] += 1;
 				continue;	
-			#print k,x[k],t;
+			#print(k,x[k],t);
 			if not traverseShortVectors(Q,n,k-1,x,center,shortVectors,RemainingBoundForNormSquared-t,numSolutionsList,maxNumSolutions,xIsCenterSoFar and x[k]==center[k], finalTransformation,callback,callbackArgs):
 				return False; #too many solution found
 			x[k] = x[k] + 1;            
@@ -1823,7 +1843,7 @@ def My_FinckePohst_ViaGramMatrix_rif(A,boundForNormSquared,center=0,solutionList
 		
 	global aLotOutput;
 	#if aLotOutput:
-	#    print "A =",A;    
+	#    print("A =",A);    
 
 	n = A.nrows();
 
@@ -1844,10 +1864,10 @@ def My_FinckePohst_ViaGramMatrix_rif(A,boundForNormSquared,center=0,solutionList
 			center = U.inverse() * center;
 
 	Q = QuadraticFormToFPForm_rif(A);
-	#print "center =",center;
-	#print "Q =\n", Q;
+	#print("center =",center);
+	#print("Q =\n", Q);
 
-	x = range(n);
+	x = [i for i in range(n)]; #will be filled sensefully in the recursion
 	numSolutionsList = [0];
 	bufferWasBigEnough = traverseShortVectors(Q,n,n-1,x,center,solutionList,boundForNormSquared,numSolutionsList,maxNumSolutions,breakSymmetry,finalTransformation,callback,callbackArgs);
 		
@@ -1894,7 +1914,7 @@ def smallEllipsoidContaining_AplusQ_and_AminusQ(Q,a):
 	 ellipsoid E_Qboth contains both translates E+a and E-a.
 	'''
 	
-	#print "Start computing ellipsoid containing E+a and E-a...",
+	#print("Start computing ellipsoid containing E+a and E-a...")
 	
 	#We construct E_Q' as the image of an ellipsoid E_Qtilda of one dimension higher:
 	#E_Qtilda is the smallest volume ellipsoid that contains E_Q \times [-1,+1].
@@ -1908,7 +1928,7 @@ def smallEllipsoidContaining_AplusQ_and_AminusQ(Q,a):
 	QbothDual = projection * QtildaDual * projection.transpose();
 	Qboth = QbothDual.inverse();
 
-	#print "done.";
+	#print("done.");
 	
 	return Qboth;
 
@@ -1973,15 +1993,15 @@ def logU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=None,verbose=False,coordinates=
 
 	pi2Itau = 2*piPrec*I*tau; 
 	if verbose:
-		print "qMin =",qMin;
-		print "qMax =",qMax;
-		print "tau =",tau;
-		print "exp(pi2Itau) =",exp(pi2Itau);
+		print("qMin =",qMin);
+		print("qMax =",qMax);
+		print("tau =",tau);
+		print("exp(pi2Itau) =",exp(pi2Itau));
 	abs_q = abs(q_rif);
 	abs_q_up = RIFprec(abs_q.upper());
 	if verbose:
-		print "abs_q =",abs_q;
-		print "abs_q_up =",abs_q_up;
+		print("abs_q =",abs_q);
+		print("abs_q_up =",abs_q_up);
 
 	#sigmaLsigmaC = sigmaL * sigmaC;
 
@@ -1999,7 +2019,7 @@ def logU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=None,verbose=False,coordinates=
 
 	for index in range(len(coordinates)):
 		kIndex = coordinates[index];
-		#print "kIndex =",kIndex;
+		#print("kIndex =",kIndex);
 		k = GalK_lift[kIndex];
 		sigma_k = X.lift_GalKIndex_to_G[kIndex]
 
@@ -2017,10 +2037,10 @@ def logU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=None,verbose=False,coordinates=
 
 			#a_list.append(a_in_Mp);
 			#aInOrbit = a_in_Mp;
-			#print "debug3 OR:",X.rightAction_GH_on_Mp.OrbitRepresentative(X.rightAction_GH_on_Mp.OrbitOfM(aInOrbit));
+			#print("debug3 OR:",X.rightAction_GH_on_Mp.OrbitRepresentative(X.rightAction_GH_on_Mp.OrbitOfM(aInOrbit)));
 		
 
-			#print "a_in_Mp 2 =",a_in_Mp;
+			#print("a_in_Mp 2 =",a_in_Mp);
 			
 			#The following is not needed anymore, as it is already in the memory:
 			#Above Proposition 6.6:
@@ -2049,23 +2069,23 @@ def logU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=None,verbose=False,coordinates=
 			sumLogs = sumLogs_Main_tau + sumLogs_Remainder.union(-sumLogs_Remainder);
 
 			if verbose:
-				print "log_abs_gamma_a =",log_abs_gamma_a;
-				print "log_abs_gamma_c =",log_abs_gamma_c;
-				print "sumLogs_Main_tau =",sumLogs_Main_tau;
-				print "sumLogs_Remainder =",sumLogs_Remainder;
-				print "sumLogs =",sumLogs;
+				print("log_abs_gamma_a =",log_abs_gamma_a);
+				print("log_abs_gamma_c =",log_abs_gamma_c);
+				print("sumLogs_Main_tau =",sumLogs_Main_tau);
+				print("sumLogs_Remainder =",sumLogs_Remainder);
+				print("sumLogs =",sumLogs);
 
 			log_Uk[index] += m * sumLogs;
 			if verbose:
-				print "m * sumLogs =",m * sumLogs;
+				print("m * sumLogs =",m * sumLogs);
 
 		log_Uk[index] += log_abs_gamma_c;
 		log_Uk[index] += ord_c_Uk/p * log(abs_q);
 		if verbose:
-			print "ord_c_Uk/p * log(abs_q) =",ord_c_Uk/p * log(abs_q);
+			print("ord_c_Uk/p * log(abs_q) =",ord_c_Uk/p * log(abs_q));
 
 	if verbose:
-		print "log_Uk[coordinates]:",log_Uk;
+		print("log_Uk[coordinates]:",log_Uk);
 		
 	return log_Uk;
 
@@ -2110,10 +2130,10 @@ def DlogU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=None,verbose=False,coordinates
 
 	pi2Itau = 2*piPrec*I*tau; 
 	if verbose:
-		print "qMin =",qMin;
-		print "qMax =",qMax;
-		print "tau =",tau;
-		print "exp(pi2Itau) =",exp(pi2Itau);
+		print("qMin =",qMin);
+		print("qMax =",qMax);
+		print("tau =",tau);
+		print("exp(pi2Itau) =",exp(pi2Itau));
 	abs_q = abs(q_rif);
 	abs_q_up = RIFprec(abs_q.upper());
 
@@ -2133,7 +2153,7 @@ def DlogU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=None,verbose=False,coordinates
 
 	for index in range(len(coordinates)):
 		kIndex = coordinates[index];
-		#print "kIndex =",kIndex;
+		#print("kIndex =",kIndex);
 		k = GalK_lift[kIndex];
 		sigma_k = X.lift_GalKIndex_to_G[kIndex]
 
@@ -2168,7 +2188,7 @@ def DlogU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=None,verbose=False,coordinates
 			sumDLogs = sumDLogs_Main_tau + sumDLogs_Remainder.union(-sumDLogs_Remainder);
 
 			if verbose:
-				print "sumLogs_Remainder =",sumDLogs_Remainder;
+				print("sumLogs_Remainder =",sumDLogs_Remainder);
 
 			Dlog_Uk[index] += m * sumDLogs;
 
@@ -2217,12 +2237,12 @@ def ellipsoid_around_logU(q_rif,sigmaC,X,prec=None,verbose=False,putMidpointErro
 	tau = tau1.union(tau2);
 	pi2Itau = 2*piPrec*I*tau; 
 	if verbose:
-		print "qMin =",qMin;
-		print "qMax =",qMax;
-		print "tau1 =",tau1;
-		print "tau2 =",tau2;
-		print "exp(pi2Itau1) =",exp(pi2Itau1);
-		print "exp(pi2Itau2) =",exp(pi2Itau2);
+		print("qMin =",qMin);
+		print("qMax =",qMax);
+		print("tau1 =",tau1);
+		print("tau2 =",tau2);
+		print("exp(pi2Itau1) =",exp(pi2Itau1));
+		print("exp(pi2Itau2) =",exp(pi2Itau2));
 	abs_qMin = abs(qMin);
 	abs_qMax = abs(qMax);
 	abs_q = abs(q_rif);
@@ -2244,7 +2264,7 @@ def ellipsoid_around_logU(q_rif,sigmaC,X,prec=None,verbose=False,putMidpointErro
 	
 
 	for kIndex in range(d):
-		#print "kIndex =",kIndex;
+		#print("kIndex =",kIndex);
 		k = GalK_lift[kIndex];
 		sigma_k = X.lift_GalKIndex_to_G[kIndex]
 
@@ -2293,8 +2313,8 @@ def ellipsoid_around_logU(q_rif,sigmaC,X,prec=None,verbose=False,putMidpointErro
 			sumLogs = sumLogs_Main_tau + sumLogs_Remainder.union(-sumLogs_Remainder);
 
 			if verbose:
-				print "sumLogs_Remainder =",sumLogs_Remainder;
-				print "sumLogs =",sumLogs;				
+				print("sumLogs_Remainder =",sumLogs_Remainder);
+				print("sumLogs =",sumLogs);				
 
 			log_Uk_qMin[kIndex] += m * sumLogs;
 			log_Uk_qMax[kIndex] += m * sumLogs;
@@ -2328,16 +2348,16 @@ def ellipsoid_around_logU(q_rif,sigmaC,X,prec=None,verbose=False,putMidpointErro
 	# as these two vectors have only RIF-coordinates, it's actually a Minkowski sum of a proper line segment and a cube given by the errors.
 
 	if verbose:
-		print "Segment from:",log_Uk_qMin;
-		print "          to:",log_Uk_qMax;
-		print "Error box:",log_Uk_error;
+		print("Segment from:",log_Uk_qMin);
+		print("          to:",log_Uk_qMax);
+		print("Error box:",log_Uk_error);
 
 	#Next we compute an ellipsoid that contains this polytope.
 	#Of course we must take care for the numerical errors that occurred.
 
 	#The midpoint of the final ellipsoid:
 	midpoint_rif = [RIFprec((log_Uk_qMin[k]+log_Uk_qMax[k])/2) for k in range(d)];
-	#print "midpoint_rif:",midpoint_rif;
+	#print("midpoint_rif:",midpoint_rif);
 
 	#Vector by which the error ellipsoid has to be translated:
 	a1 = [log_Uk_qMax[k]-midpoint_rif[k] for k in range(d)];
@@ -2349,7 +2369,7 @@ def ellipsoid_around_logU(q_rif,sigmaC,X,prec=None,verbose=False,putMidpointErro
 	if putMidpointErrorIntoEllipsoid:
 		midpoint = vector([midpoint_rif[k].center() for k in range(d)]);
 		midpoint_error = [myRIF_radius(midpoint_rif[k]) for k in range(d)];
-		#print "midpoint_error:",midpoint_error;
+		#print("midpoint_error:",midpoint_error);
 		error = [RIFprec((log_Uk_error[k] + a_error[k] + midpoint_error[k]).upper()) for k in range(d)];
 	else:
 		midpoint = vector(midpoint_rif);
@@ -2363,8 +2383,8 @@ def ellipsoid_around_logU(q_rif,sigmaC,X,prec=None,verbose=False,putMidpointErro
 	#The only problem is that the entries of Q are real intervals.
 
 	if verbose:
-		print "Ellipsoid Q_rif:\n",Q_rif
-		print "Det(Q_rif) =",det(Q_rif);
+		print("Ellipsoid Q_rif:\n",Q_rif)
+		print("Det(Q_rif) =",det(Q_rif));
 
 	return (Q_rif, midpoint);
 
@@ -2383,7 +2403,7 @@ def ellipsoid_around_logU_inBcoordinates(q_rif,sigmaC,X,prec=None,verbose=False,
 	midpoint_B = X.Alpha[prec] * vector([RIFprec(x) for x in midpoint]);
 	Q_B = X.Eta[prec].transpose() * Q_rif * X.Eta[prec];
 	if verbose:
-		print "Volume of ellipsoid Q_B:",volumeOfEllipsoid(Q_B,1);
+		print("Volume of ellipsoid Q_B:",volumeOfEllipsoid(Q_B,1));
 	return Q_B,midpoint_B;
 	
 def findCandidatesB_inQinterval_at_sigmaC(q_rif,sigmaC,X,candidatesB,maxCandidates,prec=None,verbose=False):
@@ -2402,19 +2422,19 @@ def findCandidatesB_inQinterval_at_sigmaC(q_rif,sigmaC,X,candidatesB,maxCandidat
 	entries = Q_B.list() + midpoint_B.list();
 	if not contains_only_finite_rifs(entries):
 		if verbose:
-			print "Ellipsoid is not well-defined (some entries are infinite or NaN).";
+			print("Ellipsoid is not well-defined (some entries are infinite or NaN).");
 		return False,NaN;
 	lambda_low,lambda_up = lowerAndUpperBoundsForSmallestAndLargestEigenvalueOfSelfadjointRealMatrix(Q_B);
 	if not lambda_low>0:
 		if verbose:
-			print "Matrix defining the ellipsoid is possibly not positive definite, lambda_low =",lambda_low;
+			print("Matrix defining the ellipsoid is possibly not positive definite, lambda_low =",lambda_low);
 		return False,NaN;		
 	#if Infinity in Q_B.list() or NaN in Q_B.list():
-	#	print "Ellipsoid defining Q_B contains Infinity or NaN.";
+	#	print("Ellipsoid defining Q_B contains Infinity or NaN.");
 	#	return False,NaN;
-	#print "Ellipsoid Q_B:\n",Q_B
+	#print("Ellipsoid Q_B:\n",Q_B)
 	if verbose:
-		print "volume of ellipsoid Q_B:",volumeOfEllipsoid(Q_B,1).upper().numerical_approx(digits=10);
+		print("volume of ellipsoid Q_B:",volumeOfEllipsoid(Q_B,1).upper().numerical_approx(digits=10));
 	normSqBound = RIFprec(1);
 	[bufferWasBigEnough,numCandidates] = My_FinckePohst_ViaGramMatrix_rif(Q_B,normSqBound,center=midpoint_B,solutionList=candidatesB,maxNumSolutions=maxCandidates,finalTransformation=None,callback=None,callbackArgs=None,lllReduce=True,breakSymmetry=False);
 	return bufferWasBigEnough, numCandidates;
@@ -2450,7 +2470,7 @@ def g_a_function(X,a_in_Mp,tau_re,tau_im,prec,n_terms=5):
 	#print "debug"
 
 	l_a = X.ell_a[a_in_Mp];
-	#print "l_a =",l_a;
+	#print("l_a =",l_a);
 	#The following should be the correct choice for q^la:
 	ga *= exp(CIFprec(2*pi*l_a*I)*tau);
 
@@ -2461,7 +2481,7 @@ def g_a_function(X,a_in_Mp,tau_re,tau_im,prec,n_terms=5):
 		ga *= 1-exp(CIFprec(2*pi*I*(n+a1))*tau + CIF(2*pi*I*a2));
 		ga *= 1-exp(CIFprec(2*pi*I*(n+1-a1))*tau - CIF(2*pi*I*a2));
 
-	print "TODO: Error from taking only finite product is not included yet!";
+	print("TODO: Error from taking only finite product is not included yet!");
 
 	return ga;
 
@@ -2478,7 +2498,7 @@ def g_a(X,a_in_Mp,tau,n_terms=5):
 
 	ga = CIFprec(-1);
 	l_a = bernoulli_polynomial(a1,2)/2;
-	#print "l_a =",l_a;
+	#print("l_a =",l_a);
 	#The following should be the correct choice for q^la:
 	ga *= CIFprec(exp(2*pi*I*tau*l_a));
 
@@ -2497,10 +2517,10 @@ def vectorU_at_tau(X,sigmaC,tau):
 
 	result = [CIFprec(1) for kIndex in range(X.d)];
 
-	#print "sigmaC =",sigmaC,", tau =",tau;
+	#print("sigmaC =",sigmaC,", tau =",tau);
 
 	for kIndex in range(X.d):
-		#print "kIndex =",kIndex;
+		#print("kIndex =",kIndex);
 		k = X.GalK_lift[kIndex];
 		sigma_k = X.lift_GalKIndex_to_G[kIndex];
 
@@ -2508,7 +2528,7 @@ def vectorU_at_tau(X,sigmaC,tau):
 			#a_in_Mp = X.rightAction_GH_on_Mp.action(sigmaC*sigma_k,a0_in_Mp); #Wrong order of sigmas!
 			a_in_Mp = X.rightAction_GH_on_Mp.action(sigma_k*sigmaC,a0_in_Mp);
 			ga = g_a(X,a_in_Mp,tau);
-			#print "a_in_Mp =",a_in_Mp,", ga =",ga;
+			#print("a_in_Mp =",a_in_Mp,", ga =",ga);
 			result[kIndex] *= CIF(ga ^ X.m);
 			
 	return result;
@@ -2516,21 +2536,21 @@ def vectorU_at_tau(X,sigmaC,tau):
 def test_program_at_certain_js(X):
 
 	def test_at_j(j,X):
-		print "Test j =",j;
+		print("Test j =",j);
 		prec = X.stdPrecision;
 		RIFprec = RealIntervalField(prec);
 		CIFprec = ComplexIntervalField(prec);
 		E = EllipticCurve_from_j(j);
-		print "E =",E;
-		print "E has cm:",E.has_cm();
+		print("E =",E);
+		print("E has cm:",E.has_cm());
 		rep = E.galois_representation();
-		print "image type at p:",rep.image_type(X.p);
+		print("image type at p:",rep.image_type(X.p));
 		tau = myCCtoCIF(E.period_lattice().tau(prec));
-		#print "tau =",tau;
+		#print("tau =",tau);
 		q_cif = CIFprec(exp(2*pi*i*tau));
-		#print "q_cif =",q_cif;
+		#print("q_cif =",q_cif);
 		q_rif = q_cif.real();
-		print "q_rif =",q_rif;
+		print("q_rif =",q_rif);
 
 		#t = var("t"); #the imaginary part of tau.
 		#tau_re = tau.real();
@@ -2538,61 +2558,61 @@ def test_program_at_certain_js(X):
 		#a_in_Mp = X.Mp[0];
 		#ga_fct = g_a_function(X,a_in_Mp,tau_re,t,prec,n_terms=2);
 		##ga_fct = abs(ga_fct);
-		#print "ga_fct:",ga_fct;
-		#print ga_fct.derivative(t)(tau_im);
+		#print("ga_fct:",ga_fct);
+		#print(ga_fct.derivative(t)(tau_im));
 
 		#return;
 
 		for sigmaC in X.Sigma:
 			indexSigma = X.Sigma.index(sigmaC);
-			#print "sigmaC:",sigmaC.list(),"at index",indexSigma;
+			#print("sigmaC:",sigmaC.list(),"at index",indexSigma);
 
 
 			if False: #The following uses a fresh implementation for debugging purposes:
 				vectorU = vectorU_at_tau(X,sigmaC,tau);
-				#print "vectorU =",vectorU;
+				#print("vectorU =",vectorU);
 				vLogAbsU = [log(abs(x)) for x in vectorU];
-				#print "vLogAbsU =",vLogAbsU;
+				#print("vLogAbsU =",vLogAbsU);
 				vLogAbsU_B = X.Alpha[prec] * vector([x for x in vLogAbsU]);
-				print "vLogAbsU_B =",vLogAbsU_B;
+				print("vLogAbsU_B =",vLogAbsU_B);
 
 				#prodUsigma = prod(vectorU);
-				#print "prod U^sigma =", prodUsigma;
-				#print "|prod U^sigma| =", abs(prodUsigma);
-				#print "arg(prod U^sigma)/(2pi) =", CIFprec(prodUsigma.arg()/(2*pi));
+				#print("prod U^sigma =", prodUsigma);
+				#print("|prod U^sigma| =", abs(prodUsigma));
+				#print("arg(prod U^sigma)/(2pi) =", CIFprec(prodUsigma.arg()/(2*pi)));
 						
 			if False:
 				Q_B,midpoint_B = ellipsoid_around_logU_inBcoordinates(q_rif,sigmaC,X,prec=prec,verbose=False,putMidpointErrorIntoEllipsoid=False);
-				print "midpoint_B at sigmaC:",midpoint_B;
-				print "volume of error ellipsoid:",volumeOfEllipsoid(Q_B,1);
+				print("midpoint_B at sigmaC:",midpoint_B);
+				print("volume of error ellipsoid:",volumeOfEllipsoid(Q_B,1));
 				candidatesB = [];
 				bufferWasBigEnough, numCandidates = findCandidatesB_inQinterval_at_sigmaC(q_rif,sigmaC,X,candidatesB,1,prec=prec,verbose=False);
 				if numCandidates >= 1:
-					print "Integral point is quite possibly here! With B =",candidatesB;
+					print("Integral point is quite possibly here! With B =",candidatesB);
 				else:
-					print "Integral point corresponding to j is NOT in this sheet.";
+					print("Integral point corresponding to j is NOT in this sheet.");
 
 			if True:
 				logU = logU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=None,n_summands=1);
 				B = X.Alpha[X.stdPrecision] * vector(logU);
-				#print "B =",B;
+				#print("B =",B);
 				if all([integralPoints_in_realInterval(b) != [] for b in B]):
-					print "B =",B,"could be integral for sigmaC =",sigmaC,"with index",indexSigma;
+					print("B =",B,"could be integral for sigmaC =",sigmaC,"with index",indexSigma);
 
-	print "Test certain js:";
+	print("Test certain js:");
 
 	for kIndex in range(X.d):
-		#print "kIndex =",kIndex;
+		#print("kIndex =",kIndex);
 		k = X.GalK_lift[kIndex];
 		sigma_k = X.lift_GalKIndex_to_G[kIndex];
 		k_in_Zp = X.elementOfGalQzeta_AsElementIn_ZmodPstar(k);
-		print "sigma_k =",sigma_k.list(),", det(sigma_k) =",det(sigma_k),", kIndex =",kIndex,", k_in_Zp =",k_in_Zp;
+		print("sigma_k =",sigma_k.list(),", det(sigma_k) =",det(sigma_k),", kIndex =",kIndex,", k_in_Zp =",k_in_Zp);
 
 		#for a0_in_Mp in X.Orbit0:
 		#	#a_in_Mp = X.rightAction_GH_on_Mp.action(sigmaC*sigma_k,a0_in_Mp); #Wrong order!!!
 		#	a_in_Mp = X.rightAction_GH_on_Mp.action(sigma_k*sigmaC,a0_in_Mp);
 		#	ga = g_a(X,a_in_Mp,tau);
-		#	#print "a_in_Mp =",a_in_Mp,", ga =",ga;
+		#	#print("a_in_Mp =",a_in_Mp,", ga =",ga);
 		#	result[kIndex] *= CIF(ga ^ X.m);
 			
 	#raise Exception("Test finished!");
@@ -2605,8 +2625,8 @@ def test_program_at_certain_js(X):
 			continue;
 		if D.is_square():
 			continue;
-		print " ================================ ";
-		print "j =",j,"(discr ="+str(discriminant)+") should give a point on X_ns^+(p)!";
+		print(" ================================ ");
+		print("j =",j,"(discr ="+str(discriminant)+") should give a point on X_ns^+(p)!");
 		test_at_j(j,X);
 		
 	
@@ -2625,7 +2645,7 @@ def test_program_at_certain_js(X):
 	raise Exception("Test finished!");
 
 def testProductFormula(X):
-	print "Test prod_{sigma in G/G_H} U^sigma:";
+	print("Test prod_{sigma in G/G_H} U^sigma:");
 	prec = X.stdPrecision;
 	RIFprec = RealIntervalField(prec);
 	CIFprec = ComplexIntervalField(prec);
@@ -2636,23 +2656,23 @@ def testProductFormula(X):
 	for a in X.Mp:
 		ga = g_a(X,a,tau);
 		product *= ga^exponent;
-	print "Product of g_a^(12p) over all a in Mp:",product;
-	print "p^(12p):",X.p^(CIFprec(exponent));
-	print "The last two lines should give the same result."
+	print("Product of g_a^(12p) over all a in Mp:",product);
+	print("p^(12p):",X.p^(CIFprec(exponent)));
+	print("The last two lines should give the same result.")
 	#Test worked!
 	raise Exception("Test finished!");
 
 def test_group_actions(X):
 
-	print "Orbit0:",X.Orbit0,"has length",len(X.Orbit0);
-	print "Length of Mp:",len(X.Mp);
+	print("Orbit0:",X.Orbit0,"has length",len(X.Orbit0));
+	print("Length of Mp:",len(X.Mp));
 
 	list_of_a = [];
 
 	sigmaC = X.Sigma[1];
 	
 	for kIndex in range(X.d):
-		#print "kIndex =",kIndex;
+		#print("kIndex =",kIndex);
 		k = X.GalK_lift[kIndex];
 		sigma_k = X.lift_GalKIndex_to_G[kIndex];
 
@@ -2662,19 +2682,19 @@ def test_group_actions(X):
 			list_of_a.append(a_in_Mp);
 			
 			#ga = g_a(X,a_in_Mp,tau);
-			#print "a_in_Mp =",a_in_Mp,", ga =",ga;
+			#print("a_in_Mp =",a_in_Mp,", ga =",ga);
 			#result[kIndex] *= CIF(ga ^ X.m);
 
-	print "length of list_of_a:",len(list_of_a);
+	print("length of list_of_a:",len(list_of_a));
 	list_of_a.sort();
-	print "list_of_a:",list_of_a;
+	print("list_of_a:",list_of_a);
 
 	raise Exception("Test finished!");
 	
 def testRunningTimes():
 	runningTimePer24CPUs = dict([(7,338),(11,420),(13,1397),(17,1389),(19,5579),(23,4734),(29,12332),(31,37204),(37,78528),(41,52444),(43,147720),(47,102184),(53,216312),(59,151221*2),(61,108212*8),(67,82131*16),(71,72397*16),(73,0),(79,0),(83,0),(89,0),(97,0)]);
-	for p,t in runningTimePer24CPUs.iteritems():
-		print p, t^(1/4.0)*2.1
+	for p,t in runningTimePer24CPUs.items():
+		print(p, t^(1/4.0)*2.1)
 
 ########################################################################
 ### Main program: ######################################################
@@ -2701,18 +2721,18 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 		####################################################################
 
 		if verbose:
-			print "Extra search:"
+			print("Extra search:")
 		output_js = "";
 		for j in js_to_check:
-			#print "Check j =",j,
-			#print ".",;
+			#print("Check j =",j,)
+			#print(".",);
 			if verbose:
 				if j % 1000 == 0:
-					print j,;
+					print(j);
 			output_j = test_j_and_p(j,X.p);
 			if verbose:
 				if output_j != "":
-					print output_j,;
+					print(output_j);
 			if output_j.count("non-split") >= 1:
 				output_js += output_j;
 
@@ -2726,23 +2746,23 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 			filename = path + filename;
 			if not os.path.exists(os.path.dirname(filename)):
 				os.makedirs(os.path.dirname(filename))
-			print "Write debug message in file",filename,"...";
+			print("Write debug message in file",filename,"...");
 			#save(output_js,filename);
 			#Furthermore save the solutions to a text file:
-			out = file(filename+'.txt','w')
-			#out.write("###\n");
-			out.write("Finished for js_to_check = "+str(js_to_check)+".");
-			out.write("output_js:"+str(output_js));
-			out.close();
-			print "debug message written to file.";
+			with open(filename+'.txt','w') as out:
+				#out.write("###\n");
+				out.write("Finished for js_to_check = "+str(js_to_check)+".");
+				out.write("output_js:"+str(output_js));
+				out.close();
+			print("debug message written to file.");
 				
 		return output_js;
 
 	#We are to do the Baker reduction and Fincke-Pohsting:	
 
 	if verbose:
-		print "=======================";
-		print "sigmaC =",sigmaC.list(),", number",X.Sigma.index(sigmaC),"out of",len(X.Sigma);
+		print("=======================");
+		print("sigmaC =",sigmaC.list(),", number",X.Sigma.index(sigmaC),"out of",len(X.Sigma));
 
 	t0_sigmaC = cputime();
 
@@ -2751,7 +2771,7 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 	####################################################################
 
 	if verbose:
-		print "Reduce Baker bound:"
+		print("Reduce Baker bound:")
 	#q_BakerBound = 10^(-100); #A stupid guess for what Baker might yield. Needs to be replaced by the actual Baker bound!!!
 
 	B0 = X.B0[X.stdPrecision];
@@ -2788,12 +2808,12 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 	q_negInitialBound = -q_BakerBound;
 
 	if verbose:
-		print "q_BakerBound:",q_BakerBound;
+		print("q_BakerBound:",q_BakerBound);
 
 	#The following is done in a loop in order to be able to rerun it if prec is not enough:
 	while True:
 		if verbose:
-			print "Start Fincke-Pohst with precision",prec,"...";
+			print("Start Fincke-Pohst with precision",prec,"...");
 
 		js_to_check_at_sigmaC = set([]);
 
@@ -2823,7 +2843,7 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 				finishedFinckePohstAtThisSigmaC = True;
 				break;
 			if verbose:
-				print "Remaining intervals: "+str(len(remainingIntervals))+".",;
+				print("Remaining intervals: "+str(len(remainingIntervals))+".");
 			#for q in remainingIntervals:
 			#	print myRIFtoString(q);
 			#raise Exception();
@@ -2833,7 +2853,7 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 			#print "Now try to improve on q =",(q_rif.lower().sign()*q_rif.abs().lower()).numerical_approx(digits=10);
 			
 			if verbose:
-				print "Check interval q_rif = "+rifSignToString(q_rif)+myRIFtoString(q_rif.abs());
+				print("Check interval q_rif = "+rifSignToString(q_rif)+myRIFtoString(q_rif.abs()));
 			
 			candidatesB = [];
 			maxCandidates = 1; #We allow one candidate, because this cannot be avoided.
@@ -2842,17 +2862,17 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 			if debug:
 				if bufferWasBigEnough:
 					if candidatesB != []:
-						print "candidatesB =",candidatesB;
+						print("candidatesB =",candidatesB);
 
 			if bufferWasBigEnough and bool(numCandidates == 0):
 				#No candidates for the current interval q_rif, which is good!
-				#print "No candidate for current interval!";
+				#print("No candidate for current interval!");
 				continue;
 				
 			if bufferWasBigEnough and numCandidates == 1:
 				B = candidatesB[0];
 				if (q_rif.upper()/q_rif.lower()).log().abs() < 0.1:
-					print "Only one candidate remaining in a short interval, so try to identify corresponding js:";
+					print("Only one candidate remaining in a short interval, so try to identify corresponding js:");
 					
 					prec_bisection = X.stdPrecision;
 					RIFprec_bisection = RealIntervalField(prec_bisection);
@@ -2860,26 +2880,26 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 
 					#Q,midpoint = ellipsoid_around_logU(q_rif,sigmaC,X,prec=prec_bisection,verbose=False,putMidpointErrorIntoEllipsoid=True);
 					#print "midpoint:",midpoint;
-					print "logU:",logU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=prec_bisection,verbose=False,coordinates="all");
+					print("logU:",logU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=prec_bisection,verbose=False,coordinates="all"));
 
 					DlogU = DlogU_asCoordinatewiseRif(q_rif,sigmaC,X);
-					print "DlogU:",DlogU;
+					print("DlogU:",DlogU);
 					monotone_coordinates = [k for k in range(X.d) if DlogU[k].contains_zero()==False];
 					if monotone_coordinates != []:
 						k = monotone_coordinates[0];
 						#In at least the coordinate k, DlogU is strictly monotone along the interval q_rif.
-						print "DlogU is strictly monotone along the interval q_rif in coordinate k =",k;
+						print("DlogU is strictly monotone along the interval q_rif in coordinate k =",k);
 
 						sign = DlogU[k].upper().sign();
-						print "sign =",sign;
+						print("sign =",sign);
 
 						a = RIFprec_bisection(q_rif.lower());
 						b = RIFprec_bisection(q_rif.upper());
 
 						if False and debug:
-							print "Estimated derivative DlogU:";
+							print("Estimated derivative DlogU:");
 							estimatedDlogU = (vector(logU_asCoordinatewiseRif(b,sigmaC,X,prec=prec_bisection))-vector(logU_asCoordinatewiseRif(a,sigmaC,X,prec=prec_bisection))) / (b-a);
-							print estimatedDlogU;
+							print(estimatedDlogU);
 
 						fa = sign * logU_asCoordinatewiseRif(a,sigmaC,X,prec=prec_bisection,coordinates=[k])[0];
 						fb = sign * logU_asCoordinatewiseRif(b,sigmaC,X,prec=prec_bisection,coordinates=[k])[0];
@@ -2887,37 +2907,37 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 							raise Exception("Error detected: DlogU[k] has wrong sign, thus DlogU or logU must be implemented with at least one error!");
 
 						f_at_B = sign * (X.Eta[X.stdPrecision] * vector(B))[k];
-						print "fa =",fa;
-						print "fb =",fb;
-						print "f_at_B =",f_at_B;
+						print("fa =",fa);
+						print("fb =",fb);
+						print("f_at_B =",f_at_B);
 						if f_at_B < fa or fb < f_at_B:
-							print "f_at_B is not attained at the interval q_rif";
+							print("f_at_B is not attained at the interval q_rif");
 							continue;
 
 						n_summands = 2;
 
 						while True: #loop over precision
 
-							if not X.Eta.has_key(prec_bisection):
+							if prec_bisection not in X.Eta:
 								X.init_for_higher_precision(prec=prec_bisection);
 							Eta = X.Eta[prec_bisection];
 							
 							logU_at_B = Eta * vector(B);
-							print "logU_at_B:",logU_at_B;
+							print("logU_at_B:",logU_at_B);
 							logUk_at_B = logU_at_B[k];
-							print "logUk_at_B:",logUk_at_B;
+							print("logUk_at_B:",logUk_at_B);
 							f_at_B = sign * logUk_at_B;
 
-							print "a =",a;
-							print "b =",b;
-							print "f_at_B =",f_at_B;
+							print("a =",a);
+							print("b =",b);
+							print("f_at_B =",f_at_B);
 
 							fa = sign*logU_asCoordinatewiseRif(a,sigmaC,X,prec=prec_bisection,n_summands=n_summands,coordinates=[k])[0];
 							fb = sign*logU_asCoordinatewiseRif(b,sigmaC,X,prec=prec_bisection,n_summands=n_summands,coordinates=[k])[0];
 							f_at_B = sign * (X.Eta[prec_bisection] * vector(B))[k];
-							print "fa =",fa;
-							print "fb =",fb;
-							print "f_at_B =",f_at_B;
+							print("fa =",fa);
+							print("fb =",fb);
+							print("f_at_B =",f_at_B);
 						
 							
 							fmid_hit_fatB_already = False;
@@ -2926,9 +2946,9 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 								mid = (a+b)/2;
 								if (not (a<mid)) or not (mid<b):
 									break;
-								print "mid =",mid;
+								print("mid =",mid);
 								fmid = sign*logU_asCoordinatewiseRif(mid,sigmaC,X,n_summands=n_summands,prec=prec_bisection,coordinates=[k])[0];
-								print "fmid =",fmid;
+								print("fmid =",fmid);
 
 								if fmid < f_at_B:
 									a = RIFprec_bisection(mid.upper());
@@ -2941,52 +2961,52 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 								else:
 									fmid_hit_fatB_already = True;
 									
-							print "a =",a;
-							print "b =",b;
+							print("a =",a);
+							print("b =",b);
 
 							j_rif = X.j_invariant_in_qInterval(RIFprec_bisection(a,b));
-							print "j_rif =",j_rif;
+							print("j_rif =",j_rif);
 
 							if j_rif.absolute_diameter() <= 0.001:
-								print "j_rif is precise enough, can stop approximation now!";
+								print("j_rif is precise enough, can stop approximation now!");
 								break;
 							else:
-								print "j_rif is too unprecise! Need to continue approximation with higher precision.";
+								print("j_rif is too unprecise! Need to continue approximation with higher precision.");
 								prec_bisection += precIncrement;
-								print "New precision during approximation:",prec_bisection;
+								print("New precision during approximation:",prec_bisection);
 								RIFprec_bisection = RealIntervalField(prec_bisection);
 								CIFprec_bisection = ComplexIntervalField(prec_bisection);
 								a = RIFprec_bisection(a);
 								b = RIFprec_bisection(b);
 								n_summands += 2;
-								print "Now take n_summands =",n_summands;
+								print("Now take n_summands =",n_summands);
 								continue;
 
 						js_candidates = integralPoints_in_realInterval(j_rif);
-						print "js_candidates =",js_candidates;
+						print("js_candidates =",js_candidates);
 
 						#Test whether all coordinates of logU are (possibly) the ones we expect for candidate B:
 						for j in js_candidates:
-							print "j =",j,":";
+							print("j =",j,":");
 							E = EllipticCurve_from_j(j);
-							print "E =",E;
+							print("E =",E);
 							tau = myCCtoCIF(E.period_lattice().tau(prec=prec_bisection));
-							print "tau =",tau;
+							print("tau =",tau);
 							q = RIFprec_bisection(CIFprec_bisection(exp(2*I*pi*tau)).real());
-							print "q =",q;
+							print("q =",q);
 							logU_at_j = logU_asCoordinatewiseRif(q,sigmaC,X,n_summands=2,prec=prec_bisection);
-							print "logU_at_j =",logU_at_j;
+							print("logU_at_j =",logU_at_j);
 							#Check whether at all coordinates, the intervals logU_at_B and logU_at_j overlap:
 							if all([not (logU_at_B[k] != logU_at_j[k]) for k in range(X.d)]):
-								print "All coordinates for j =",j,"match, so this j is a strong candidate!";
+								print("All coordinates for j =",j,"match, so this j is a strong candidate!");
 								js_to_check_at_sigmaC.add(j);
 						
-						#print "New j's to check:",integralPoints_in_realInterval(j_rif);
+						#print("New j's to check:",integralPoints_in_realInterval(j_rif));
 						#js_to_check_at_sigmaC.update(set(integralPoints_in_realInterval(j_rif)));
 
 						continue;
 
-						#print "DlogU:",DlogU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=prec_bisection,verbose=False,coordinates="all");
+						#print("DlogU:",DlogU_asCoordinatewiseRif(q_rif,sigmaC,X,prec=prec_bisection,verbose=False,coordinates="all"));
 				
 				
 			if bufferWasBigEnough and bool(numCandidates <= 1):
@@ -2994,18 +3014,18 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 				j_rif = X.j_invariant_in_qInterval(q_rif);
 				if j_rif.absolute_diameter() <= max_j_interval_length:
 					if verbose or debug:
-						print "TODO: Found a small q-interval",q_rif,"which gives rise to at most",max_j_interval_length,"candidates, so check all relevant j's directly!";
-						print "j_rif =",myRIFtoString(j_rif);
-						print "candidatesB =",candidatesB
+						print("TODO: Found a small q-interval",q_rif,"which gives rise to at most",max_j_interval_length,"candidates, so check all relevant j's directly!");
+						print("j_rif =",myRIFtoString(j_rif));
+						print("candidatesB =",candidatesB)
 					#Sanity check:
 					if len(integralPoints_in_realInterval(j_rif))>max_j_interval_length+1:
-						print integralPoints_in_realInterval(j_rif);
+						print(integralPoints_in_realInterval(j_rif));
 						raise Exception("More js than expected!");
 					js_to_check_at_sigmaC.update(set(integralPoints_in_realInterval(j_rif)));
 					continue;
 			if bufferWasBigEnough == False and numCandidates == NaN:
 				if verbose:
-					print "Precision was not high enough."
+					print("Precision was not high enough.")
 				numTimesPrecisionTooLow += 1;
 				if numTimesPrecisionTooLow >= maxTimesPrecisionTooLow:
 					msg = "Precision was too low already "+str(numTimesPrecisionTooLow)+" times.";
@@ -3013,7 +3033,7 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 					msg += "\n We rerun the program at this sigma_c with higher precision.";
 					#raise PrecisionError(msg);
 					if verbose:
-						print msg;
+						print(msg);
 
 					finishedFinckePohstAtThisSigmaC = False;
 					prec += precIncrement;
@@ -3021,17 +3041,17 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 					X.init_for_higher_precision(prec);
 
 					if False and debug:
-						print "Remaining intervals:";
+						print("Remaining intervals:");
 						for remainingInterval in remainingIntervals:
-							print myRIFtoString(remainingInterval);
-						print "Current interval q_rif:",myRIFtoString(q_rif);
+							print(myRIFtoString(remainingInterval));
+						print("Current interval q_rif:",myRIFtoString(q_rif));
 
 					#Update intial bounds by what was computed already:
 					q_posInitialBound = RIFprec(q_MaxPos_sieve);
 					q_negInitialBound = RIFprec(q_MaxNeg_sieve);
 					for remainingInterval in remainingIntervals + [q_rif]:
 						if False and debug:
-							print "Remaining interval:",myRIFtoString(remainingInterval);
+							print("Remaining interval:",myRIFtoString(remainingInterval));
 						if remainingInterval > 0:
 							q_posInitialBound = q_posInitialBound.min(RIFprec(remainingInterval));
 						elif remainingInterval < 0:
@@ -3048,28 +3068,28 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 					q_negInitialBound = RIFprec(q_negInitialBound.upper());					
 
 					if debug:
-						print "New q_posInitialBound:",myRIFtoString(q_posInitialBound);
-						print "New q_negInitialBound:",myRIFtoString(q_negInitialBound);
+						print("New q_posInitialBound:",myRIFtoString(q_posInitialBound));
+						print("New q_negInitialBound:",myRIFtoString(q_negInitialBound));
 					
 					break;
 					
 			#Split q_rif into two smaller pieces.
-			#print "Split interval into smaller pieces and retry.";
+			#print("Split interval into smaller pieces and retry.");
 			q_split = q_rif.center().sign()*(1/2*log(RIFprec(q_rif.abs().lower())) + 1/2*log(RIFprec(q_rif.abs().upper()))).exp().center();
-			#print log(RIFprec(q_rif.lower()));
-			#print log(RIFprec(q_rif.upper()));
-			#print (1/2*log(RIF(q_rif.lower())) + 1/2*log(RIF(q_rif.upper())));
+			#print(log(RIFprec(q_rif.lower())));
+			#print(log(RIFprec(q_rif.upper())));
+			#print((1/2*log(RIF(q_rif.lower())) + 1/2*log(RIF(q_rif.upper()))));
 
-			#print "q_split =",q_split.numerical_approx(digits=10);
+			#print("q_split =",q_split.numerical_approx(digits=10));
 
 			q_rif_low = RIFprec(q_rif.lower(),q_split);
 			q_rif_up = RIFprec(q_split,q_rif.upper());
 			remainingIntervals.append(q_rif_low);
 			remainingIntervals.append(q_rif_up);
 	
-			#print "bufferWasBigEnough =",bufferWasBigEnough;
-			#print "numCandidates =",numCandidates;
-			#print "candidates =",candidatesB;
+			#print("bufferWasBigEnough =",bufferWasBigEnough);
+			#print("numCandidates =",numCandidates);
+			#print("candidates =",candidatesB);
 
 		if finishedFinckePohstAtThisSigmaC:
 			break;
@@ -3077,8 +3097,8 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 			continue; #With higher precision;
 
 	if verbose or debug:	
-		print "js_to_check at sigma_C:",js_to_check_at_sigmaC;
-		print "Time taken for this sigma_c:",cputime(t0_sigmaC);
+		print("js_to_check at sigma_C:",js_to_check_at_sigmaC);
+		print("Time taken for this sigma_c:",cputime(t0_sigmaC));
 
 	if debug:
 		filename = "sigma"+str(X.Sigma.index(sigmaC));
@@ -3090,15 +3110,15 @@ def find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,sigmaC,q_MaxNeg_
 		filename = path + filename;
 		if not os.path.exists(os.path.dirname(filename)):
 			os.makedirs(os.path.dirname(filename))
-		print "Write debug message in file",filename,"...";
+		print("Write debug message in file",filename,"...");
 		#save(output_js,filename);
 		#Furthermore save the solutions to a text file:
-		out = file(filename+'.txt','w')
-		#out.write("###\n");
-		out.write("Finished for sigmaC = "+str(sigmaC)+".");
-		out.write("js_to_check_at_sigmaC:"+str(js_to_check_at_sigmaC));
-		out.close();
-		print "debug message written to file.";
+		with open(filename+'.txt','w') as out:
+			#out.write("###\n");
+			out.write("Finished for sigmaC = "+str(sigmaC)+".");
+			out.write("js_to_check_at_sigmaC:"+str(js_to_check_at_sigmaC));
+			out.close();
+		print("debug message written to file.");
 
 	return js_to_check_at_sigmaC;
 	
@@ -3126,9 +3146,9 @@ def integralPoints_on_XnsPlus_P(p,d=None,saveToFile = True,part=0,numParts=1,ext
 	
 	global pathData;
 	
-	print "p =",p;
+	print("p =",p);
 
-	print "Run part",part,"of",numParts;
+	print("Run part",part,"of",numParts);
 
 	t00 = walltime();
 
@@ -3149,7 +3169,7 @@ def integralPoints_on_XnsPlus_P(p,d=None,saveToFile = True,part=0,numParts=1,ext
 
 	#X.showMemoryUsage();
 
-	#print "Debugging:";
+	#print("Debugging:");
 	#test_group_actions(X);
 	#testProductFormula(X);
 	#test_program_at_certain_js(X);
@@ -3185,15 +3205,15 @@ def integralPoints_on_XnsPlus_P(p,d=None,saveToFile = True,part=0,numParts=1,ext
 
 	verboseDuringParallelInstances = True;
 
-	#print "Test sieve:"
-	#print find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,X.Sigma[0],q_MaxNeg_sieve,q_MaxPos_sieve,None,True);
+	#print("Test sieve:")
+	#print(find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,X.Sigma[0],q_MaxNeg_sieve,q_MaxPos_sieve,None,True));
 	#raise Exception("Test finished!");
 
-	#print "Test extra search:"
-	#print find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,None,None,None,js_to_check_apriori,True);
+	#print("Test extra search:")
+	#print(find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,None,None,None,js_to_check_apriori,True));
 	#raise Exception("Test finished!");
 
-	print "Start parallel computing...";
+	print("Start parallel computing...");
 	parameters = [];
 	paramJsApriori = (X,None,None,None,js_to_check_apriori,verboseDuringParallelInstances);
 
@@ -3218,41 +3238,41 @@ def integralPoints_on_XnsPlus_P(p,d=None,saveToFile = True,part=0,numParts=1,ext
 	for x in gen:
 		sigmaC = x[0][0][1];
 		output = x[1];
-		print "x:",x;
+		print("x:",x);
 
 		##Debug:
 		#for parameter in parameters:
 		#	sigmaC = parameter[1];
 		#	output = find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(*parameter);
 	
-		print "Parallel instance returned:",output;
-		print sigmaC;
+		print("Parallel instance returned:",output);
+		print(sigmaC);
 		if sigmaC == None:
 			#js have been checked:
 			output_js += output; #x[1];
-			print "js_to_check_apriori where checked!";
-			print "output_js:",output_js;
+			print("js_to_check_apriori where checked!");
+			print("output_js:",output_js);
 		else:
 			#Sieving was done:
 			js_to_check_for_sigmaC = output;
-			print "sigmaC =",sigmaC.list(),"was checked.";
-			print "js_to_check_for_sigmaC:",js_to_check_for_sigmaC;
+			print("sigmaC =",sigmaC.list(),"was checked.");
+			print("js_to_check_for_sigmaC:",js_to_check_for_sigmaC);
 			js_to_check_for_sigmaC.difference_update(js_to_check_apriori);
 			js_to_check_remaining = js_to_check_remaining.union(js_to_check_for_sigmaC);
 
 	#Check remaining js which came as candidates from some sigmaC:
-	print "js_to_check_remaining:",js_to_check_remaining;
+	print("js_to_check_remaining:",js_to_check_remaining);
 	output_js_remaining = find_all_jCandidates_at_sigmaC_or_check_them_in_given_set(X,None,None,None,js_to_check_remaining,verboseDuringParallelInstances);
-	print "output_js_remaining:",output_js_remaining;
+	print("output_js_remaining:",output_js_remaining);
 	output_js += output_js_remaining;
 
-	print "==================================";
-	print "Finished for p = "+str(p)+"!";
-	print "Set of remaining candidates j:";
-	print output_js;
+	print("==================================");
+	print("Finished for p = "+str(p)+"!");
+	print("Set of remaining candidates j:");
+	print(output_js);
 
 	totalTime = walltime(t00);
-	print "Total time:",totalTime;
+	print("Total time:",totalTime);
 
 	##Debug:
 	#return;
@@ -3268,15 +3288,15 @@ def integralPoints_on_XnsPlus_P(p,d=None,saveToFile = True,part=0,numParts=1,ext
 			os.makedirs(os.path.dirname(filename))
 		#save(output_js,filename);
 		#Furthermore save the solutions to a text file:
-		out = file(filename+'.txt','w')
-		#out.write("###\n");
-		out.write("# List of j-invariants of possible integral points on X_ns^+(p).\n");
-		out.write("# Computing this list took "+str(ceil(totalTime))+" seconds on "+str(numCPUs)+" cpus.\n");
-		out.write("# Authors: Aurelien Bajolet, Yuri Bilu, Benjamin Matschke, 2016.\n");
-		out.write("# License: Creative commons 3.0 by-nc.\n");
-		out.write("#\n");
-		out.write(output_js);
-		out.close();
+		with open(filename+'.txt','w') as out:
+			#out.write("###\n");
+			out.write("# List of j-invariants of possible integral points on X_ns^+(p).\n");
+			out.write("# Computing this list took "+str(ceil(totalTime))+" seconds on "+str(numCPUs)+" cpus.\n");
+			out.write("# Authors: Aurelien Bajolet, Yuri Bilu, Benjamin Matschke, 2016.\n");
+			out.write("# License: Creative commons 3.0 by-nc.\n");
+			out.write("#\n");
+			out.write(output_js);
+			out.close();
 	
 	return True;
 
@@ -3317,7 +3337,7 @@ def reduceB0OldToB0New():
 	#In order to make all computations valid also wrt. the second arxiv version,
 	#we reduce the new bound to the old bound whenever necessary:
 	for p in prime_range(10,100):
-		print "================================== p:",p;
+		print("================================== p:",p);
 		X = X_ns_plus(p);
 		X.reduction_from_B0old_to_B0new();
 
