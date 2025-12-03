@@ -1312,6 +1312,18 @@ class X_ns_plus:
 		Notation is in large parts as in the paper.
 		One difference is that "k" in the paper is here a "j",
 		 and the "l" in the paper is here a "k" (because it denotes an element in K).
+		 
+		Remark:
+		The current implementation of the first reductions is centered around B0 (more closer to [arxiv-v1]), 
+		whereas the paper (arxiv-v2) is centered around log|q_c(P)^{-1}|.
+		For the present code we decided to stay with the old approach (centered around B0),
+		mainly because this is the one we used to compute integral points for 11<=p<=97.
+		The full computation took almost 16 CPU years, which is why we did not want to redo it.
+		However the [arxiv-v2] approach is cleaner and is recommended to be used in future projects,
+		in particular in connection with the ellipsoid covering method, 
+		as there we work exclusively with q_c(P), and not B0.
+		In practise, both approaches work equally well, 
+		neither of which is a bottleneck for the computation of X_ns^+(p)(ZZ).
 		'''
 		debug = False;
 		if debug:
@@ -2695,6 +2707,40 @@ def testRunningTimes():
 	runningTimePer24CPUs = dict([(7,338),(11,420),(13,1397),(17,1389),(19,5579),(23,4734),(29,12332),(31,37204),(37,78528),(41,52444),(43,147720),(47,102184),(53,216312),(59,151221*2),(61,108212*8),(67,82131*16),(71,72397*16),(73,0),(79,0),(83,0),(89,0),(97,0)]);
 	for p,t in runningTimePer24CPUs.items():
 		print(p, t^(1/4.0)*2.1)
+
+def test_first_reductions(p,d=None):
+	print("p =",p);
+	if d == None:
+		d = ZZ((p-1)/2);
+	X = X_ns_plus(p,d=d);
+	log_q_first_reductions = []
+	for sigmaC in X.Sigma:
+		indexSigma = X.Sigma.index(sigmaC);
+
+		if verbose:
+			print("Reduce Baker bound:")
+		#q_BakerBound = 10^(-100); #A stupid guess for what Baker might yield. Needs to be replaced by the actual Baker bound!!!
+
+		B0 = X.B0[X.stdPrecision];
+		q_BakerBound = RIF(0);
+		while True:
+			B0_new, q_BakerBound_new = X.reduction_of_BakerBound_B0_and_qc_at_sigmaC(sigmaC,B0);
+			q_BakerBound = max(q_BakerBound,q_BakerBound_new);
+			if not B0_new < 0.99*B0:
+				B0 = B0_new;
+				break;
+			B0 = B0_new;
+		print("B0:",B0);
+		print("log q_BakerBound:",log(q_BakerBound));
+		log_q_first_reductions.append(log(q_BakerBound).lower())
+			
+	print("log_q_first_reductions:",log_q_first_reductions)
+	filename = "log_q_first_reductions_p_"+str(p)+"_d_"+str(d)+"_arxiv_v1.sobj"
+	save(log_q_first_reductions,filename)	
+	
+#for p in prime_range(11,97):
+#	test_first_reductions(p)
+#test_first_reductions(97,16)
 
 ########################################################################
 ### Main program: ######################################################
